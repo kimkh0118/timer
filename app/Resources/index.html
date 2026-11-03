@@ -129,7 +129,8 @@ const COLORS = ["glass", "#1d1d1f", "#ffffff", "#ffc943", "#ff8577", "#ffa3e5", 
 
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem("timer2") || "{}"); } catch (e) {}
-const S = Object.assign({ total: 300, onTop: false, sound: "chime", loop: false, tick: true, bg: "glass" }, saved);
+const S = Object.assign({ total: 300, onTop: false, sound: "rattle", loop: false, tick: true, bg: "glass" }, saved);
+if (!saved.v2) { S.sound = "rattle"; S.v2 = true; }
 const save = () => { try { localStorage.setItem("timer2", JSON.stringify(S)); } catch (e) {} };
 let remaining = S.total * 1000, endAt = null, ticker = null, finished = false, lastTickSec = null;
 
@@ -159,11 +160,23 @@ function mallet(freq, at, vol) {
   tone(freq * 4, at, 0.12, vol * 0.35, "sine");
   tone(freq * 10, at, 0.03, vol * 0.1, "sine");
 }
-// 마지막 5초: 똑-딱 번갈아, 마지막 1초는 높은 음
+// 나무 블록 한 번 (짧은 딱 + 짧은 울림)
+function wood(at, freq, vol) {
+  click(at, freq * 2.2, vol * 2.2);
+  tone(freq, at, 0.06, vol * 0.5, "sine");
+}
+// 마지막 5초: 1초마다 "똑딱"
 function synthTick(sec) {
   const t = audio().currentTime;
-  if (sec === 1) { click(t, 3200, 2.2); tone(1760, t, 0.08, 0.12, "sine"); }
-  else click(t, sec % 2 ? 2600 : 1900, 2.0);
+  wood(t, 1300, 0.9);          // 똑
+  wood(t + 0.16, 950, 0.8);    // 딱
+}
+// 0초: "뜨드뜨드든"
+function rattle() {
+  const t = audio().currentTime;
+  [0, 0.07, 0.14, 0.21].forEach((d, i) => wood(t + d, i % 2 ? 620 : 760, 0.9));   // 뜨드뜨드
+  wood(t + 0.30, 440, 1.1);                                                        // 든
+  tone(220, t + 0.30, 0.35, 0.25, "sine");
 }
 // 끝: 마림바 "딩-딩-딩-딩~"
 function chime() {
@@ -182,6 +195,7 @@ async function loadCustom(kind, dataUrl) {
 function playBuf(buf) { const c = audio(), src = c.createBufferSource(); src.buffer = buf; src.connect(c.destination); src.start(); return buf.duration; }
 function playTick(sec) { custom.tick ? playBuf(custom.tick) : synthTick(sec); }
 const SOUNDS = {
+  rattle: ["뜨드뜨드든", rattle, 1200],
   chime: ["마림바", chime, 2000],
   beep: ["삐비비비", beeps, 1000],
   file: ["내 소리 파일", () => { if (custom.end) playBuf(custom.end); }, 0],
@@ -189,11 +203,11 @@ const SOUNDS = {
 let alarmTimer = null;
 function startAlarm() {
   stopAlarmSound();
-  const snd = SOUNDS[S.sound === "file" && !custom.end ? "chime" : S.sound];
+  const snd = SOUNDS[S.sound === "file" && !custom.end ? "rattle" : S.sound];
   if (!snd) return send("play", { name: S.sound, loop: S.loop });
   snd[1](); let n = 1;
   const gap = S.sound === "file" ? Math.max(1000, (custom.end ? custom.end.duration : 1) * 1000 + 400) : snd[2];
-  alarmTimer = setInterval(() => { if (!S.loop && n >= 2) return stopAlarmSound(); snd[1](); n++; }, gap);
+  alarmTimer = setInterval(() => { if (!S.loop && n >= (S.sound === "rattle" ? 1 : 2)) return stopAlarmSound(); snd[1](); n++; }, gap);
 }
 function stopAlarmSound() { clearInterval(alarmTimer); alarmTimer = null; send("stopSound"); }
 
@@ -384,7 +398,7 @@ $("#filePick").onchange = e => {
 function clearFile(kind) {
   try { localStorage.removeItem(fileKey(kind)); } catch (e) {}
   custom[kind] = null;
-  if (kind === "end" && S.sound === "file") { S.sound = "chime"; $("#sound").value = "chime"; save(); }
+  if (kind === "end" && S.sound === "file") { S.sound = "rattle"; $("#sound").value = "rattle"; save(); }
   fileLabel();
 }
 $("#tickClear").onclick = () => clearFile("tick");
