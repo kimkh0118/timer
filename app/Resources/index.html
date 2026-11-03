@@ -152,7 +152,9 @@ const figjamEnd = new Audio("figjam-end.mp3");
 const media = [figjamCountdown, figjamEnd];
 media.forEach(a => { a.preload = "auto"; });
 const sources = new Set();
-const volumeTickSources = new Set();
+let volumePreviewSource = null;
+let volumePreviewStopTimer = null;
+let volumeDragging = false;
 const effectiveVolume = () => S.muted ? 0 : S.vol * S.vol;
 let countdownPlaying = false;
 let previewTimer = null;
@@ -160,9 +162,10 @@ function stopCountdown() {
   figjamCountdown.pause(); figjamCountdown.currentTime = 0; countdownPlaying = false;
 }
 function stopSources() {
-  sources.forEach(src => { try { src.stop(); } catch (e) {} }); sources.clear(); volumeTickSources.clear();
+  sources.forEach(src => { try { src.stop(); } catch (e) {} }); sources.clear();
 }
 function stopPreview() {
+  stopVolumePreview();
   clearTimeout(previewTimer); previewTimer = null;
   stopCountdown(); figjamEnd.pause(); figjamEnd.currentTime = 0; stopSources(); send("stopSound");
   $("#preview").textContent = "미리 듣기";
@@ -187,21 +190,36 @@ function syncVolume() {
   $("#mute").setAttribute("aria-pressed", String(S.muted || S.vol === 0));
   $("#mute").textContent = S.muted || S.vol === 0 ? "소리 켜기" : "음소거";
 }
-function trackSource(src) { sources.add(src); src.onended = () => { sources.delete(src); volumeTickSources.delete(src); src.disconnect(); }; return src; }
-// 슬라이더를 움직일 때마다 현재 볼륨으로 짧은 똑딱 피드백.
-// 직전 피드백만 취소하므로 타이머 소리와 알람은 계속 재생됩니다.
-function previewVolumeTick() {
-  volumeTickSources.forEach(src => { try { src.stop(); } catch (e) {} }); volumeTickSources.clear();
-  if (effectiveVolume() === 0) return;
-  const c = audio(), t = c.currentTime;
+function trackSource(src) { sources.add(src); src.onended = () => { sources.delete(src); src.disconnect(); }; return src; }
+// 한 번 시작한 똑딱 루프는 그대로 두고 master gain만 변경합니다.
+function startVolumePreview() {
+  if (volumePreviewSource || running() || finished || previewTimer !== null) return;
+  const c = audio(), buffer = c.createBuffer(1, c.sampleRate, c.sampleRate);
+  const data = buffer.getChannelData(0);
   [1700, 1250].forEach((freq, i) => {
-    const o = trackSource(c.createOscillator()), g = c.createGain(), at = t + i * 0.09;
-    volumeTickSources.add(o); o.type = "triangle"; o.frequency.value = freq;
-    g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(0.24, at + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.045);
-    o.connect(g).connect(master); o.start(at); o.stop(at + 0.05);
+    const offset = Math.floor(i * 0.5 * c.sampleRate);
+    for (let n = 0; n < Math.floor(0.05 * c.sampleRate); n++) {
+      const t = n / c.sampleRate;
+      const envelope = Math.min(1, t / 0.003) * Math.exp(-t * 140);
+      data[offset + n] = 0.35 * envelope * (Math.sin(2 * Math.PI * freq * t) + 0.2 * Math.sin(4 * Math.PI * freq * t));
+    }
   });
+  const source = trackSource(c.createBufferSource());
+  source.buffer = buffer; source.loop = true; source.connect(master);
+  volumePreviewSource = source; source.start();
+}
+function stopVolumePreview() {
+  clearTimeout(volumePreviewStopTimer); volumePreviewStopTimer = null;
+  volumeDragging = false;
+  if (volumePreviewSource) {
+    try { volumePreviewSource.stop(); } catch (e) {}
+    volumePreviewSource = null;
+  }
+}
+function finishVolumeAdjustment() {
+  volumeDragging = false;
+  clearTimeout(volumePreviewStopTimer);
+  volumePreviewStopTimer = setTimeout(stopVolumePreview, 1000);
 }
 // 기존 합성음도 같은 볼륨으로 조절합니다.
 let ac = null;
@@ -410,7 +428,7 @@ $("#shrink").onclick = () => { closeSheet(); document.body.classList.add("compac
 $("#grow").onclick = () => { document.body.classList.remove("compact"); send("compact", { on: false }); };
 
 // ───── 설정 ─────
-const closeSheet = () => { $("#sheet").hidden = true; $("#gear").setAttribute("aria-expanded", "false"); };
+const closeSheet = () => { stopVolumePreview(); $("#sheet").hidden = true; $("#gear").setAttribute("aria-expanded", "false"); };
 $("#gear").onclick = e => { e.stopPropagation(); const open = $("#sheet").hidden; $("#sheet").hidden = !open; $("#gear").setAttribute("aria-expanded", String(open)); };
 $("#sheet").onclick = e => e.stopPropagation();
 document.addEventListener("click", closeSheet);
@@ -449,8 +467,16 @@ function previewEnd() {
   if (SOUNDS[S.sound]) SOUNDS[S.sound][1]();
   else send("play", { name: S.sound, loop: false, vol: effectiveVolume() });
 }
-$("#vol").oninput = e => { S.vol = +e.target.value / 100; S.muted = false; syncVolume(); save(); previewVolumeTick(); };
+$("#vol").oninput = e => { S.vol = +e.target.value / 100; S.muted = false; syncVolume(); save(); startVolumePreview(); if (!volumeDragging) finishVolumeAdjustment(); };
 $("#vol").onchange = save;
+$("#vol").onpointerdown = () => {
+  volumeDragging = true;
+  clearTimeout(volumePreviewStopTimer); volumePreviewStopTimer = null;
+  startVolumePreview();
+};
+$("#vol").onblur = stopVolumePreview;
+document.addEventListener("pointerup", () => { if (volumeDragging) finishVolumeAdjustment(); });
+document.addEventListener("pointercancel", () => { if (volumeDragging) stopVolumePreview(); });
 $("#mute").onclick = () => {
   if (S.vol === 0 && !S.muted) S.vol = 0.5;
   else S.muted = !S.muted;
