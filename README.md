@@ -4,16 +4,26 @@
 
 ## 다운로드 방법
 
-1. [Releases 페이지](https://github.com/kimkh0118/timer/releases/latest)에서 `Timer.zip`을 받아요.
-2. 압축을 풀고 나온 `타이머.app`을 **응용 프로그램** 폴더로 옮겨요.
-3. 처음 열 때 "확인되지 않은 개발자" 경고가 뜨면:
-   - `타이머.app`을 **오른쪽 클릭 → 열기 → 열기**를 눌러요. (한 번만 하면 돼요)
-   - 그래도 안 열리면 터미널에서 아래 명령을 실행한 뒤 다시 열어요.
-     ```bash
-     xattr -cr /Applications/타이머.app
-     ```
+**[타이머 앱 다운로드 — Timer.zip](https://github.com/kimkh0118/timer/releases/latest/download/Timer.zip)**
 
-> Apple Silicon(M1 이상) 맥, macOS 11 이상에서 동작해요.
+지원 환경: **Apple Silicon(M1 이상) Mac · macOS 11 이상**. Intel Mac과 Windows는 지원하지 않아요.
+
+1. 위의 **타이머 앱 다운로드**를 눌러 `Timer.zip`을 받아요. 소스 코드 ZIP을 받을 필요는 없어요.
+2. 다운로드한 `Timer.zip`을 더블 클릭해서 압축을 풀어요.
+3. 나온 `타이머.app`을 Finder의 **응용 프로그램** 폴더로 옮겨요.
+4. **응용 프로그램 → 타이머**를 더블 클릭하면 실행돼요. Xcode나 Node.js 설치는 필요 없어요.
+
+### 처음 실행이 차단되는 경우
+
+Apple 공증을 받지 않은 앱이라 첫 실행 시 개발자를 확인할 수 없다는 알림이 나올 수 있어요.
+이 저장소에서 받은 앱인지 확인한 뒤 **시스템 설정 → 개인정보 보호 및 보안**에서 타이머 앱의 실행 허용 항목을 선택하고 다시 열어 주세요.
+macOS 버전별 방법은 [Apple의 앱 실행 안내](https://support.apple.com/ko-kr/guide/mac-help/mh40616/mac)를 참고하세요.
+
+### 업데이트하기
+
+타이머를 `⌘Q`로 종료한 뒤 위 링크에서 새 `Timer.zip`을 받아요. 압축을 풀어 **응용 프로그램** 폴더의 기존 `타이머.app`을 교체하면 돼요.
+
+이전 버전과 변경 내용은 [전체 릴리스](https://github.com/kimkh0118/timer/releases)에서 볼 수 있어요.
 
 ### 직접 빌드하기
 
@@ -23,7 +33,12 @@ cd timer
 ./build.sh --install   # 바탕화면에 설치하고 실행
 ```
 
-Xcode 명령줄 도구가 필요해요 (`xcode-select --install`).
+직접 빌드할 때만 Xcode 명령줄 도구가 필요해요 (`xcode-select --install`).
+빌드 대상은 `arm64-apple-macos11.0`이며, 배포용 ZIP은 다음 명령으로 만들 수 있어요.
+
+```bash
+./build.sh --package   # build/Timer.zip 생성
+```
 
 ## 사용 방법
 
