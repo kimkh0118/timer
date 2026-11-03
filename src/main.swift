@@ -22,6 +22,11 @@ final class DragStrip: NSView {
     override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
 }
 
+/// 창이 비활성일 때도 첫 클릭이 바로 버튼에 먹히게 해요.
+final class ClickWebView: WKWebView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 final class Bridge: NSObject, WKScriptMessageHandler {
     weak var web: WKWebView?
     weak var window: NSWindow?
@@ -29,6 +34,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     private var alarm: Timer?
     private var activity: NSObjectProtocol?
     private var sound: NSSound?
+    private var normalFrame: NSRect?
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let b = message.body as? [String: Any], let type = b["type"] as? String else { return }
@@ -36,6 +42,8 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "onTop":
             onTop = b["on"] as? Bool ?? false
             applyTopLevel()
+        case "compact":
+            setCompact(b["on"] as? Bool ?? false)
         case "alarm":
             scheduleAlarm(at: b["at"] as? Double)
         case "busy":
@@ -68,6 +76,35 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             w.level = .normal
         }
     }
+
+    /// 간소화: 화면 오른쪽 위 작은 창으로 줄이고, 다시 누르면 원래대로.
+    func setCompact(_ on: Bool) {
+        guard let w = window else { return }
+        if on {
+            guard normalFrame == nil else { return }
+            normalFrame = w.frame
+            w.contentMinSize = NSSize(width: 240, height: 110)
+            w.styleMask.remove(.resizable)
+            let size = NSSize(width: 280, height: 120)
+            let vf = (w.screen ?? NSScreen.main)?.visibleFrame ?? w.frame
+            var origin = NSPoint(x: vf.maxX - size.width - 20, y: vf.maxY - size.height - 20)
+            if let a = UserDefaults.standard.array(forKey: "compactOrigin") as? [Double], a.count == 2 {
+                let r = NSRect(x: a[0], y: a[1], width: size.width, height: size.height)
+                if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(r.insetBy(dx: 40, dy: 40)) }) { origin = r.origin }
+            }
+            w.setFrame(NSRect(origin: origin, size: size), display: true, animate: true)
+        } else {
+            guard let nf = normalFrame else { return }
+            UserDefaults.standard.set([Double(w.frame.minX), Double(w.frame.minY)], forKey: "compactOrigin")
+            normalFrame = nil
+            w.styleMask.insert(.resizable)
+            w.contentMinSize = NSSize(width: 380, height: 480)
+            w.setFrame(nf, display: true, animate: true)
+        }
+        applyTopLevel()
+    }
+
+    var restoreFrame: NSRect? { normalFrame }
 
     /// 창이 가려져 있어도 정확한 시각에 화면에 "끝났어요"를 알려요.
     private func scheduleAlarm(at ms: Double?) {
@@ -107,10 +144,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let config = WKWebViewConfiguration()
+        config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.add(bridge, name: "tm")
         config.userContentController.addUserScript(WKUserScript(source: "window.__NATIVE__ = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
-        let web = WKWebView(frame: .zero, configuration: config)
+        let web = ClickWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
         web.setValue(false, forKey: "drawsBackground")
         web.autoresizingMask = [.width, .height]
@@ -118,8 +156,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
 
-        window = MainPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 180),
-                           styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+        window = MainPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 560),
+                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                            backing: .buffered, defer: false)
         window.title = "타이머"
         window.isReleasedWhenClosed = false
@@ -128,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         window.isMovableByWindowBackground = true
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.setContentSize(NSSize(width: 420, height: 180))
+        window.contentMinSize = NSSize(width: 380, height: 480)
 
         let root = NSVisualEffectView(frame: window.contentRect(forFrameRect: window.frame))
         root.material = .hudWindow
@@ -137,13 +175,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         root.appearance = NSAppearance(named: .vibrantDark)
         web.frame = root.bounds
         root.addSubview(web)
-        let strip = DragStrip(frame: NSRect(x: 0, y: root.bounds.height - 16, width: root.bounds.width, height: 16))
+        let strip = DragStrip(frame: NSRect(x: 0, y: root.bounds.height - 26, width: root.bounds.width - 90, height: 26))
         strip.autoresizingMask = [.width, .minYMargin]
         root.addSubview(strip)
         window.contentView = root
 
         window.center()
-        window.setFrameAutosaveName("TimerSmall")
+        window.setFrameAutosaveName("TimerMain")
         bridge.web = web
         bridge.window = window
         window.makeKeyAndOrderFront(nil)
@@ -164,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     }
     func applicationWillTerminate(_ notification: Notification) {
         NSApp.dockTile.badgeLabel = nil
+        if let nf = bridge.restoreFrame { window.setFrame(nf, display: false) }
         bridge.stopAll()
     }
 }
