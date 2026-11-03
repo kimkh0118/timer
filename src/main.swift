@@ -51,7 +51,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "badge":
             NSApp.dockTile.badgeLabel = b["text"] as? String
         case "play":
-            play(b["name"] as? String ?? "Glass", loop: b["loop"] as? Bool ?? false)
+            play(b["name"] as? String ?? "Glass", loop: b["loop"] as? Bool ?? false, volume: Float(b["vol"] as? Double ?? 1))
         case "stopSound":
             sound?.stop(); sound = nil
         case "finish":
@@ -127,10 +127,11 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         }
     }
 
-    private func play(_ name: String, loop: Bool) {
+    private func play(_ name: String, loop: Bool, volume: Float) {
         sound?.stop()
         guard let s = NSSound(named: NSSound.Name(name))?.copy() as? NSSound else { return }
         s.loops = loop
+        s.volume = volume
         s.play()
         sound = s
     }
