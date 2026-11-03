@@ -198,10 +198,10 @@ function startVolumePreview() {
   const data = buffer.getChannelData(0);
   [1700, 1250].forEach((freq, i) => {
     const offset = Math.floor(i * 0.5 * c.sampleRate);
-    for (let n = 0; n < Math.floor(0.05 * c.sampleRate); n++) {
+    for (let n = 0; n < Math.floor(0.12 * c.sampleRate); n++) {
       const t = n / c.sampleRate;
-      const envelope = Math.min(1, t / 0.003) * Math.exp(-t * 140);
-      data[offset + n] = 0.8 * envelope * (Math.sin(2 * Math.PI * freq * t) + 0.2 * Math.sin(4 * Math.PI * freq * t));
+      const envelope = Math.min(1, t / 0.003) * Math.exp(-t * 80);
+      data[offset + n] = 1.05 * envelope * (Math.sin(2 * Math.PI * freq * t) + 0.2 * Math.sin(4 * Math.PI * freq * t));
     }
   });
   const source = trackSource(c.createBufferSource());
