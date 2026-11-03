@@ -4,24 +4,39 @@
 
 ## 다운로드 방법
 
-**[타이머 앱 다운로드 — Timer.zip](https://github.com/kimkh0118/timer/releases/latest/download/Timer.zip)**
+**[타이머 설치 파일 다운로드 — Timer.dmg](https://github.com/kimkh0118/timer/releases/latest/download/Timer.dmg)**
 
 지원 환경: **Apple Silicon(M1 이상) Mac · macOS 11 이상**. Intel Mac과 Windows는 지원하지 않아요.
 
-1. 위의 **타이머 앱 다운로드**를 눌러 `Timer.zip`을 받아요. 소스 코드 ZIP을 받을 필요는 없어요.
-2. 다운로드한 `Timer.zip`을 더블 클릭해서 압축을 풀어요.
-3. 나온 `타이머.app`을 Finder의 **응용 프로그램** 폴더로 옮겨요.
-4. **응용 프로그램 → 타이머**를 더블 클릭하면 실행돼요. Xcode나 Node.js 설치는 필요 없어요.
+1. 위 링크에서 `Timer.dmg`를 받아 더블 클릭해요. 소스 코드 ZIP은 받을 필요 없어요.
+2. 열린 **타이머 설치** 창에서 `타이머.app`을 **Applications(응용 프로그램)** 폴더로 드래그해요.
+3. Finder의 **응용 프로그램 → 타이머**를 실행해요.
+4. 설치가 끝나면 Finder에서 **타이머 설치** 디스크를 추출해요. Xcode나 Node.js는 필요 없어요.
 
-### 처음 실행이 차단되는 경우
+### “Apple은 '타이머'에 … 악성 코드가 없음을 확인할 수 없습니다”가 뜨면
 
-Apple 공증을 받지 않은 앱이라 첫 실행 시 개발자를 확인할 수 없다는 알림이 나올 수 있어요.
-이 저장소에서 받은 앱인지 확인한 뒤 **시스템 설정 → 개인정보 보호 및 보안**에서 타이머 앱의 실행 허용 항목을 선택하고 다시 열어 주세요.
-macOS 버전별 방법은 [Apple의 앱 실행 안내](https://support.apple.com/ko-kr/guide/mac-help/mh40616/mac)를 참고하세요.
+현재 배포 앱은 **Apple 공증을 받지 않아 첫 실행이 차단될 수 있어요. DMG로 받아도 이 경고는 없어지지 않아요.**
+이 저장소에서 받은 앱인지 확인한 뒤 다음 순서로 진행해 주세요.
+
+1. 위 문구의 경고 창에서는 **휴지통으로 이동** 대신 **완료**를 눌러요.
+2. **시스템 설정 → 개인정보 보호 및 보안**을 열어요.
+3. 아래쪽 **보안**에 표시된 타이머의 **그래도 열기**를 눌러요.
+4. 인증이 요청되면 진행하고, 다음 경고에서 **열기**를 눌러요.
+
+한 번 허용하면 이후에는 응용 프로그램의 타이머를 더블 클릭해 실행할 수 있어요.
+**그래도 열기**가 보이지 않으면 응용 프로그램에서 타이머를 한 번 실행한 뒤 설정을 다시 확인해 주세요.
+학교·회사에서 관리하는 Mac은 관리자가 실행을 제한할 수 있어요.
+자세한 방법은 [Apple 공식 안내](https://support.apple.com/ko-kr/102445)를 참고하세요.
+
+### ZIP을 눌렀는데 `타이머.app`이 바로 보이나요?
+
+일부 브라우저는 다운로드한 ZIP을 자동으로 풀어요. `타이머.app`이 보이면 압축 해제가 끝난 상태이므로, 응용 프로그램 폴더로 옮겨 위의 첫 실행 방법을 따르면 돼요.
+자동 압축 해제가 헷갈리면 위의 **DMG 다운로드**를 이용하세요.
+[ZIP으로 받기 — Timer.zip](https://github.com/kimkh0118/timer/releases/latest/download/Timer.zip)도 계속 제공해요.
 
 ### 업데이트하기
 
-타이머를 `⌘Q`로 종료한 뒤 위 링크에서 새 `Timer.zip`을 받아요. 압축을 풀어 **응용 프로그램** 폴더의 기존 `타이머.app`을 교체하면 돼요.
+타이머를 `⌘Q`로 종료한 뒤 새 `Timer.dmg`를 받아요. 열린 창의 `타이머.app`을 응용 프로그램 폴더로 드래그해 기존 앱을 교체하면 돼요.
 
 이전 버전과 변경 내용은 [전체 릴리스](https://github.com/kimkh0118/timer/releases)에서 볼 수 있어요.
 
@@ -34,10 +49,10 @@ cd timer
 ```
 
 직접 빌드할 때만 Xcode 명령줄 도구가 필요해요 (`xcode-select --install`).
-빌드 대상은 `arm64-apple-macos11.0`이며, 배포용 ZIP은 다음 명령으로 만들 수 있어요.
+빌드 대상은 `arm64-apple-macos11.0`이며, 배포용 DMG와 ZIP은 다음 명령으로 만들 수 있어요.
 
 ```bash
-./build.sh --package   # build/Timer.zip 생성
+./build.sh --package   # build/Timer.dmg 및 build/Timer.zip 생성
 ```
 
 ## 사용 방법

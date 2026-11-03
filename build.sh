@@ -2,7 +2,7 @@
 # 타이머 앱 빌드
 #   ./build.sh            → build/타이머.app 만들기
 #   ./build.sh --install  → 바탕화면에 설치하고 실행
-#   ./build.sh --package  → 배포용 build/Timer.zip 만들기
+#   ./build.sh --package  → 배포용 build/Timer.dmg 및 Timer.zip 만들기
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 NAME="타이머"
@@ -21,7 +21,13 @@ echo "✓ 완료: $APP"
 
 if [ "${1:-}" = "--package" ]; then
   ditto -c -k --sequesterRsrc --keepParent "$APP" "$ROOT/build/Timer.zip"
-  echo "✓ 배포 파일: $ROOT/build/Timer.zip"
+  DMG_STAGE="$(mktemp -d "$ROOT/build/dmg.XXXXXX")"
+  ditto "$APP" "$DMG_STAGE/$NAME.app"
+  ln -s /Applications "$DMG_STAGE/Applications"
+  cp "$ROOT/app/INSTALL.txt" "$DMG_STAGE/설치 안내.txt"
+  hdiutil create -volname "타이머 설치" -srcfolder "$DMG_STAGE" -ov -format UDZO "$ROOT/build/Timer.dmg"
+  rm -rf "$DMG_STAGE"
+  echo "✓ 배포 파일: $ROOT/build/Timer.dmg, $ROOT/build/Timer.zip"
 fi
 
 if [ "${1:-}" = "--install" ]; then
