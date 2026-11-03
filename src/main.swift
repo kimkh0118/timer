@@ -98,7 +98,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             UserDefaults.standard.set([Double(w.frame.minX), Double(w.frame.minY)], forKey: "compactOrigin")
             normalFrame = nil
             w.styleMask.insert(.resizable)
-            w.contentMinSize = NSSize(width: 380, height: 480)
+            w.contentMinSize = NSSize(width: 360, height: 300)
             w.setFrame(nf, display: true, animate: true)
         }
         applyTopLevel()
@@ -156,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
 
-        window = MainPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 560),
+        window = MainPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
                            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                            backing: .buffered, defer: false)
         window.title = "타이머"
@@ -166,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         window.isMovableByWindowBackground = true
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.contentMinSize = NSSize(width: 380, height: 480)
+        window.contentMinSize = NSSize(width: 360, height: 300)
 
         let root = NSVisualEffectView(frame: window.contentRect(forFrameRect: window.frame))
         root.material = .hudWindow
@@ -181,7 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         window.contentView = root
 
         window.center()
-        window.setFrameAutosaveName("TimerMain")
+        window.setFrameAutosaveName("TimerMain2")
         bridge.web = web
         bridge.window = window
         window.makeKeyAndOrderFront(nil)

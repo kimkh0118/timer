@@ -1,7 +1,7 @@
 #!/bin/bash
 # 타이머 앱 빌드
 #   ./build.sh            → build/타이머.app 만들기
-#   ./build.sh --install  → 응용 프로그램 폴더에 설치하고 실행
+#   ./build.sh --install  → 바탕화면에 설치하고 실행
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 NAME="타이머"
@@ -19,8 +19,7 @@ codesign --force --deep -s - "$APP"
 echo "✓ 완료: $APP"
 
 if [ "${1:-}" = "--install" ]; then
-  DEST="$HOME/Applications/$NAME.app"
-  mkdir -p "$HOME/Applications"
+  DEST="$HOME/Desktop/$NAME.app"
   pkill -x Timer 2>/dev/null && sleep 1 || true
   rm -rf "$DEST"; cp -R "$APP" "$DEST"
   open "$DEST"
