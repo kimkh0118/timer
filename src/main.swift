@@ -52,6 +52,8 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             NSApp.dockTile.badgeLabel = b["text"] as? String
         case "play":
             play(b["name"] as? String ?? "Glass", loop: b["loop"] as? Bool ?? false, volume: Float(b["vol"] as? Double ?? 1))
+        case "volume":
+            sound?.volume = Float(max(0, min(1, b["vol"] as? Double ?? 0)))
         case "stopSound":
             sound?.stop(); sound = nil
         case "finish":
