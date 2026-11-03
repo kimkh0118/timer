@@ -5,100 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>타이머</title>
 <style>
-  :root { --fg:#f5f5f7; --dim:rgba(245,245,247,.55); --line:rgba(255,255,255,.12); --pin:#e0262c; --glass:rgba(255,255,255,.08); }
+  :root { --fg:#f5f5f7; --dim:rgba(245,245,247,.55); --line:rgba(255,255,255,.14); --pin:#e0262c; --glass:rgba(255,255,255,.08); }
   * { box-sizing:border-box; margin:0; }
-  html,body { height:100%; background:transparent; color:var(--fg); font:14px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; user-select:none; -webkit-user-select:none; overflow:hidden; }
-  button { font:inherit; color:inherit; border:0; background:var(--glass); border-radius:10px; cursor:pointer; }
-  button:hover { background:rgba(255,255,255,.14); }
-  button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--pin); outline-offset:2px; }
-  .app { height:100%; display:flex; flex-direction:column; align-items:center; padding:38px 22px 20px; gap:18px; }
-  .tools { position:fixed; top:8px; right:10px; display:flex; gap:6px; }
-  .tool { width:30px; height:30px; display:grid; place-items:center; }
-  .tool[aria-pressed="true"] { background:var(--pin); color:#fff; }
-  .tool svg { width:16px; height:16px; }
-  .ring { position:relative; width:min(78vw,280px); aspect-ratio:1; }
-  .ring svg { width:100%; height:100%; transform:rotate(-90deg); }
-  .ring circle { fill:none; stroke-width:8; }
-  .ring .bg { stroke:var(--line); }
-  .ring .bar { stroke:var(--pin); stroke-linecap:round; transition:stroke-dashoffset .3s linear; }
-  .time { position:absolute; inset:0; display:grid; place-items:center; font-size:clamp(40px,15vw,64px); font-weight:300; font-variant-numeric:tabular-nums; letter-spacing:-1px; }
+  html,body { height:100%; background:transparent; color:var(--fg); font:13px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; user-select:none; -webkit-user-select:none; overflow:hidden; }
+  button { font:inherit; color:inherit; border:0; background:var(--glass); border-radius:8px; cursor:pointer; }
+  button:hover { background:rgba(255,255,255,.15); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--pin); outline-offset:1px; }
+  .app { height:100%; padding:26px 14px 12px; display:flex; flex-direction:column; gap:8px; }
+  .top { display:flex; align-items:center; justify-content:space-between; }
+  .time { font-size:50px; line-height:1; font-weight:300; font-variant-numeric:tabular-nums; letter-spacing:-1px; }
   .time.done { color:var(--pin); animation:blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity:.35; } }
-  .presets { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
-  .presets button { padding:7px 12px; }
-  .custom { display:flex; align-items:center; gap:6px; color:var(--dim); }
-  .custom input { width:56px; padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:var(--glass); color:var(--fg); font:inherit; text-align:center; font-variant-numeric:tabular-nums; }
-  .ctrl { display:flex; gap:12px; }
-  .ctrl button { padding:12px 26px; font-size:15px; font-weight:600; border-radius:999px; }
-  .play { background:var(--pin) !important; color:#fff; min-width:120px; }
-  .opts { display:flex; gap:10px; align-items:center; color:var(--dim); margin-top:auto; }
-  .opts select { background:var(--glass); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:5px 8px; font:inherit; }
-  /* 간소화 창 */
-  .mini { display:none; height:100%; align-items:center; justify-content:space-between; padding:0 16px; gap:12px; }
-  .mini .time { position:static; font-size:44px; }
-  .mini-btns { display:flex; gap:6px; }
-  body.compact .app { display:none; }
-  body.compact .mini { display:flex; }
-  body.compact .tools { display:none; }
-  .mini-bar { position:fixed; left:0; bottom:0; height:3px; background:var(--pin); transition:width .3s linear; }
+  .btns { display:flex; gap:6px; }
+  .tool { width:34px; height:34px; display:grid; place-items:center; }
+  .tool svg { width:16px; height:16px; }
+  .tool[aria-pressed="true"] { background:var(--pin); color:#fff; }
+  .play { background:var(--pin) !important; color:#fff; width:42px; }
+  .bar { height:3px; border-radius:2px; background:var(--line); overflow:hidden; }
+  .bar i { display:block; height:100%; width:100%; background:var(--pin); transition:width .3s linear; }
+  .row { display:flex; align-items:center; gap:5px; color:var(--dim); }
+  .row button { padding:4px 8px; color:var(--fg); }
+  .row input { width:40px; padding:3px 4px; border-radius:6px; border:1px solid var(--line); background:var(--glass); color:var(--fg); font:inherit; text-align:center; font-variant-numeric:tabular-nums; }
+  .row select { background:var(--glass); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:2px 4px; font:inherit; }
+  .sp { flex:1; }
 </style>
 </head>
 <body>
-<div class="tools">
-  <button class="tool" id="pin" title="항상 위에 띄우기" aria-label="항상 위에 띄우기" aria-pressed="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>
-  </button>
-  <button class="tool" id="shrink" title="작게 보기" aria-label="작게 보기">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg>
-  </button>
-</div>
-
 <main class="app">
-  <div class="ring">
-    <svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="45"/><circle class="bar" id="bar" cx="50" cy="50" r="45"/></svg>
+  <div class="top">
     <div class="time" id="time">25:00</div>
+    <div class="btns">
+      <button class="tool" id="reset" title="초기화 (R)" aria-label="초기화">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>
+      </button>
+      <button class="tool play" id="play" title="시작/일시정지 (스페이스)" aria-label="시작"></button>
+      <button class="tool" id="pin" title="항상 위에 고정" aria-label="항상 위에 고정" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>
+      </button>
+    </div>
   </div>
-  <div class="presets" id="presets"></div>
-  <label class="custom">직접
-    <input id="mm" type="number" min="0" max="999" value="25" aria-label="분">분
-    <input id="ss" type="number" min="0" max="59" value="0" aria-label="초">초
-  </label>
-  <div class="ctrl">
-    <button id="reset">초기화</button>
-    <button id="play" class="play">시작</button>
-  </div>
-  <div class="opts">
-    <label>알람 <select id="sound"></select></label>
-    <label><input type="checkbox" id="loop"> 끌 때까지 울리기</label>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="row" id="presets"></div>
+  <div class="row">
+    <input id="mm" type="number" min="0" max="999" aria-label="분">분
+    <input id="ss" type="number" min="0" max="59" aria-label="초">초
+    <span class="sp"></span>
+    <select id="sound" aria-label="알람 소리"></select>
+    <label title="끌 때까지 울리기"><input type="checkbox" id="loop" style="width:auto"> 반복</label>
   </div>
 </main>
-
-<div class="mini">
-  <div class="time" id="miniTime">25:00</div>
-  <div class="mini-btns">
-    <button class="tool" id="miniPlay" aria-label="시작/일시정지">▶</button>
-    <button class="tool" id="miniPin" aria-label="항상 위에 띄우기" aria-pressed="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>
-    </button>
-    <button class="tool" id="grow" aria-label="크게 보기">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-    </button>
-  </div>
-  <i class="mini-bar" id="miniBar"></i>
-</div>
 
 <script>
 const $ = s => document.querySelector(s);
 const send = (type, extra = {}) => { try { window.webkit.messageHandlers.tm.postMessage({ type, ...extra }); } catch (e) {} };
 const SOUNDS = ["Glass","Hero","Ping","Purr","Submarine","Funk","Blow","Bottle","Frog","Morse","Pop","Sosumi","Tink","Basso"];
-const PRESETS = [1, 5, 10, 15, 25, 30, 50, 60];
-const C = 2 * Math.PI * 45;
+const PRESETS = [5, 10, 15, 25, 30, 50, 60];
+const ICON = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>',
+};
 
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem("timer") || "{}"); } catch (e) {}
 const S = Object.assign({ total: 1500, onTop: false, sound: "Glass", loop: false }, saved);
-let remaining = S.total * 1000, endAt = null, ticker = null, finished = false;
-const save = () => { try { localStorage.setItem("timer", JSON.stringify({ total: S.total, onTop: S.onTop, sound: S.sound, loop: S.loop })); } catch (e) {} };
+let remaining = S.total * 1000, endAt = null, ticker = null, finished = false, lastIcon = "";
+const save = () => { try { localStorage.setItem("timer", JSON.stringify(S)); } catch (e) {} };
 
 const fmt = ms => {
   const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
@@ -109,29 +81,25 @@ const running = () => endAt !== null;
 
 function render() {
   const left = running() ? Math.max(0, endAt - Date.now()) : remaining;
-  const txt = fmt(left), frac = S.total ? left / (S.total * 1000) : 0;
-  $("#time").textContent = $("#miniTime").textContent = txt;
+  const txt = fmt(left);
+  $("#time").textContent = txt;
   $("#time").classList.toggle("done", finished);
-  $("#miniTime").classList.toggle("done", finished);
-  $("#bar").style.strokeDashoffset = C * (1 - frac);
-  $("#miniBar").style.width = (frac * 100) + "%";
-  $("#play").textContent = finished ? "알람 끄기" : running() ? "일시정지" : (left < S.total * 1000 ? "계속" : "시작");
-  $("#miniPlay").textContent = finished ? "■" : running() ? "❚❚" : "▶";
-  document.title = running() ? `${txt} · 타이머` : "타이머";
+  $("#bar").style.width = (S.total ? left / (S.total * 1000) * 100 : 0) + "%";
+  const icon = finished ? "stop" : running() ? "pause" : "play";
+  if (icon !== lastIcon) {
+    $("#play").innerHTML = ICON[icon]; lastIcon = icon;
+    $("#play").setAttribute("aria-label", { stop: "알람 끄기", pause: "일시정지", play: "시작" }[icon]);
+  }
   send("badge", { text: running() ? txt.replace(/^0/, "") : (finished ? "!" : null) });
   return left;
 }
 
-function tick() { if (render() <= 0) done(); }
-
 function start() {
   if (remaining <= 0) remaining = S.total * 1000;
-  if (remaining <= 0) return;
   finished = false;
   endAt = Date.now() + remaining;
-  send("alarm", { at: endAt });
-  send("busy", { on: true });
-  ticker = setInterval(tick, 250);
+  send("alarm", { at: endAt }); send("busy", { on: true });
+  ticker = setInterval(() => { if (render() <= 0) done(); }, 250);
   render();
 }
 function pause() {
@@ -161,26 +129,19 @@ function setTotal(sec) {
 }
 window.__nativeAlarm = () => done();   // 창이 가려져 있어도 정확한 시각에 끝내요
 
-// 고정(항상 위에)
 function applyPin() {
   $("#pin").setAttribute("aria-pressed", String(S.onTop));
-  $("#miniPin").setAttribute("aria-pressed", String(S.onTop));
   send("onTop", { on: S.onTop });
 }
-$("#pin").onclick = $("#miniPin").onclick = () => { S.onTop = !S.onTop; save(); applyPin(); };
-
-// 간소화 창
-$("#shrink").onclick = () => { document.body.classList.add("compact"); send("compact", { on: true }); };
-$("#grow").onclick = () => { document.body.classList.remove("compact"); send("compact", { on: false }); };
+$("#pin").onclick = () => { S.onTop = !S.onTop; save(); applyPin(); };
 
 PRESETS.forEach(m => {
   const b = document.createElement("button");
-  b.textContent = m >= 60 ? `${m / 60}시간` : `${m}분`;
+  b.textContent = m >= 60 ? "1시간" : `${m}분`;
   b.onclick = () => setTotal(m * 60);
   $("#presets").appendChild(b);
 });
-const fromInputs = () => setTotal((parseInt($("#mm").value) || 0) * 60 + (parseInt($("#ss").value) || 0));
-$("#mm").onchange = $("#ss").onchange = fromInputs;
+$("#mm").onchange = $("#ss").onchange = () => setTotal((parseInt($("#mm").value) || 0) * 60 + (parseInt($("#ss").value) || 0));
 
 SOUNDS.forEach(n => $("#sound").add(new Option(n, n)));
 $("#sound").value = S.sound;
@@ -188,7 +149,7 @@ $("#sound").onchange = e => { S.sound = e.target.value; save(); send("play", { n
 $("#loop").checked = S.loop;
 $("#loop").onchange = e => { S.loop = e.target.checked; save(); };
 
-$("#play").onclick = $("#miniPlay").onclick = toggle;
+$("#play").onclick = toggle;
 $("#reset").onclick = reset;
 document.addEventListener("keydown", e => {
   if (/INPUT|SELECT/.test(document.activeElement.tagName)) return;
@@ -196,7 +157,6 @@ document.addEventListener("keydown", e => {
   if (e.key === "r" || e.key === "R") reset();
 });
 
-$("#bar").style.strokeDasharray = C;
 $("#mm").value = Math.floor(S.total / 60); $("#ss").value = S.total % 60;
 applyPin();
 render();
