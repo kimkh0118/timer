@@ -25,6 +25,10 @@
   .adj { width:44px; height:44px; border-radius:50%; font-size:24px; line-height:1; display:grid; place-items:center; }
   .adj:disabled { opacity:.3; cursor:default; transform:none; filter:none; }
   .time { min-width:5ch; text-align:center; font-size:72px; font-weight:600; letter-spacing:-2px; font-variant-numeric:tabular-nums; line-height:1; }
+  #time { cursor:text; border-radius:12px; padding:0 6px; }
+  #time:hover { background:var(--soft); }
+  .time.edit { width:5.2ch; padding:0 6px; border:0; border-radius:12px; background:var(--soft); color:var(--fg); font-family:inherit; outline:2px solid var(--accent); }
+  .time.edit[hidden] { display:none; }
   .time.warn { color:var(--accent); }
   .time.done { color:var(--accent); animation:blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity:.3; } }
@@ -45,6 +49,10 @@
   .sw input { width:100%; height:100%; opacity:0; cursor:pointer; }
   .sw.custom { background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red); }
   .sheet label { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .files { display:grid; grid-template-columns:1fr auto auto; gap:6px; align-items:center; }
+  .files button { background:rgba(255,255,255,.1); color:#f5f5f7; border-radius:7px; padding:3px 8px; font-size:12px; }
+  .note { font-size:11px; color:rgba(245,245,247,.6); }
+  .note:empty { display:none; }
   .sheet select { background:rgba(255,255,255,.1); color:#f5f5f7; border:1px solid rgba(255,255,255,.16); border-radius:7px; padding:3px 6px; font:inherit; }
 
   /* 간소화 창 */
@@ -76,12 +84,20 @@
   <label>끝날 때 <select id="sound"></select></label>
   <label>마지막 5초 똑딱 <input type="checkbox" id="tick"></label>
   <label>끌 때까지 울리기 <input type="checkbox" id="loop"></label>
+  <h3>내 소리 파일 (mp3·wav·m4a)</h3>
+  <div class="files">
+    <span>똑딱</span><button id="tickPick">고르기</button><button id="tickClear" aria-label="똑딱 파일 지우기">기본</button>
+    <span>끝</span><button id="endPick">고르기</button><button id="endClear" aria-label="끝 소리 파일 지우기">기본</button>
+  </div>
+  <input type="file" id="filePick" accept="audio/*" hidden>
+  <p class="note" id="fileNote"></p>
 </div>
 
 <main class="app">
   <div class="clock">
     <button class="adj" id="minus" title="1분 빼기" aria-label="1분 빼기">−</button>
-    <div class="time" id="time">05:00</div>
+    <div class="time" id="time" tabindex="0" role="button" title="눌러서 시간 입력" aria-label="시간 입력">05:00</div>
+    <input class="time edit" id="timeEdit" inputmode="numeric" aria-label="시간 입력 (분:초)" hidden>
     <button class="adj" id="plus" title="1분 더하기" aria-label="1분 더하기">+</button>
   </div>
   <div class="bar"><i id="bar"></i></div>
@@ -129,29 +145,55 @@ function tone(freq, at, dur, vol, type = "sine") {
   o.connect(g).connect(c.destination);
   o.start(at); o.stop(at + dur + 0.05);
 }
-// 나무 블록 같은 똑딱 (마지막 1초는 살짝 높게)
-function playTick(last) {
-  const t = audio().currentTime, f = last ? 1250 : 880;
-  tone(f, t, 0.07, 0.5, "sine");
-  tone(f * 2.6, t, 0.025, 0.15, "triangle");
+// 짧은 "딱" 소리: 걸러낸 잡음으로 시계/나무 느낌
+function click(at, freq, vol) {
+  const c = audio(), len = Math.floor(c.sampleRate * 0.03), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 6);
+  const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = 8; g.gain.value = vol;
+  src.connect(f).connect(g).connect(c.destination); src.start(at);
 }
-// 맑은 종소리 (도-미-솔-도)
+// 마림바 한 음
+function mallet(freq, at, vol) {
+  tone(freq, at, 0.9, vol, "sine");
+  tone(freq * 4, at, 0.12, vol * 0.35, "sine");
+  tone(freq * 10, at, 0.03, vol * 0.1, "sine");
+}
+// 마지막 5초: 똑-딱 번갈아, 마지막 1초는 높은 음
+function synthTick(sec) {
+  const t = audio().currentTime;
+  if (sec === 1) { click(t, 3200, 2.2); tone(1760, t, 0.08, 0.12, "sine"); }
+  else click(t, sec % 2 ? 2600 : 1900, 2.0);
+}
+// 끝: 마림바 "딩-딩-딩-딩~"
 function chime() {
   const t = audio().currentTime;
-  [1046.5, 1318.5, 1568, 2093].forEach((f, i) => {
-    tone(f, t + i * 0.12, 1.4, 0.22, "sine");
-    tone(f * 2, t + i * 0.12, 0.5, 0.05, "sine");
-  });
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => mallet(f, t + i * 0.14, 0.32));
+  mallet(1046.5, t + 0.56, 0.2); mallet(1318.5, t + 0.56, 0.18);
 }
 function beeps() { const t = audio().currentTime; for (let i = 0; i < 4; i++) tone(2000, t + i * 0.13, 0.09, 0.2, "square"); }
-const SOUNDS = { chime: ["종소리", chime, 2200], beep: ["삐비비비", beeps, 1000] };
+
+// 내 소리 파일 (설정에서 넣어요)
+const custom = { tick: null, end: null };
+async function loadCustom(kind, dataUrl) {
+  if (!dataUrl) { custom[kind] = null; return; }
+  try { custom[kind] = await audio().decodeAudioData(await (await fetch(dataUrl)).arrayBuffer()); } catch (e) { custom[kind] = null; }
+}
+function playBuf(buf) { const c = audio(), src = c.createBufferSource(); src.buffer = buf; src.connect(c.destination); src.start(); return buf.duration; }
+function playTick(sec) { custom.tick ? playBuf(custom.tick) : synthTick(sec); }
+const SOUNDS = {
+  chime: ["마림바", chime, 2000],
+  beep: ["삐비비비", beeps, 1000],
+  file: ["내 소리 파일", () => { if (custom.end) playBuf(custom.end); }, 0],
+};
 let alarmTimer = null;
 function startAlarm() {
   stopAlarmSound();
-  const snd = SOUNDS[S.sound];
+  const snd = SOUNDS[S.sound === "file" && !custom.end ? "chime" : S.sound];
   if (!snd) return send("play", { name: S.sound, loop: S.loop });
   snd[1](); let n = 1;
-  alarmTimer = setInterval(() => { if (!S.loop && n >= 2) return stopAlarmSound(); snd[1](); n++; }, snd[2]);
+  const gap = S.sound === "file" ? Math.max(1000, (custom.end ? custom.end.duration : 1) * 1000 + 400) : snd[2];
+  alarmTimer = setInterval(() => { if (!S.loop && n >= 2) return stopAlarmSound(); snd[1](); n++; }, gap);
 }
 function stopAlarmSound() { clearInterval(alarmTimer); alarmTimer = null; send("stopSound"); }
 
@@ -177,6 +219,7 @@ function render() {
   $("#miniPlay").textContent = finished ? "■" : running() ? "❚❚" : "▶";
   // 돌아가는 동안: −는 끄고 +는 "1분 더"
   $("#minus").disabled = running() || finished || S.total <= 60;
+  $("#minus").disabled = $("#minus").disabled || remaining <= 60000 && !running();
   $("#plus").title = running() ? "1분 더" : "1분 더하기";
   send("badge", { text: running() ? txt.replace(/^0/, "") : (finished ? "!" : null) });
   return left;
@@ -185,7 +228,7 @@ function tick() {
   const left = render();
   if (left <= 0) return done();
   const sec = Math.ceil(left / 1000);
-  if (S.tick && sec <= 5 && sec !== lastTickSec) { lastTickSec = sec; playTick(sec === 1); }
+  if (S.tick && sec <= 5 && sec !== lastTickSec) { lastTickSec = sec; playTick(sec); }
 }
 function start() {
   if (remaining <= 0) remaining = S.total * 1000;
@@ -222,6 +265,43 @@ function adjust(min) {
   save(); render();
 }
 window.__nativeAlarm = () => done();   // 창이 가려져 있어도 정확한 시각에 끝내요
+
+// 숫자를 눌러 키보드로 입력: "7" → 7분, "130" → 1:30, "10:30" → 10분 30초
+function parseTime(v) {
+  v = v.trim();
+  if (!v) return null;
+  if (v.includes(":")) {
+    const [m, sec] = v.split(":").map(x => parseInt(x || "0", 10));
+    return isNaN(m) || isNaN(sec) ? null : m * 60 + sec;
+  }
+  if (!/^\d+$/.test(v)) return null;
+  if (v.length <= 2) return parseInt(v, 10) * 60;           // 분만
+  return parseInt(v.slice(0, -2), 10) * 60 + parseInt(v.slice(-2), 10);   // 앞은 분, 뒤 두 자리는 초
+}
+function openEdit() {
+  if (running()) pause();
+  if (finished) stopAlarm();
+  const ed = $("#timeEdit");
+  ed.value = fmt(remaining); ed.hidden = false; $("#time").hidden = true;
+  ed.focus(); ed.select();
+}
+function closeEdit(apply) {
+  const ed = $("#timeEdit");
+  if (ed.hidden) return;
+  if (apply) {
+    const sec = parseTime(ed.value);
+    if (sec !== null && sec > 0) { S.total = Math.min(sec, 999 * 60 + 59); remaining = S.total * 1000; save(); }
+  }
+  ed.hidden = true; $("#time").hidden = false; render();
+}
+$("#time").onclick = openEdit;
+$("#time").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); openEdit(); } };
+$("#timeEdit").onkeydown = e => {
+  if (e.key === "Enter") { e.preventDefault(); closeEdit(true); }
+  else if (e.key === "Escape") { e.preventDefault(); closeEdit(false); }
+  else if (!/^[0-9:]$/.test(e.key) && e.key.length === 1 && !e.metaKey) e.preventDefault();   // 숫자와 : 만
+};
+$("#timeEdit").onblur = () => closeEdit(true);
 
 $("#minus").onclick = () => adjust(-1);
 $("#plus").onclick = () => adjust(1);
@@ -262,20 +342,55 @@ COLORS.forEach(c => {
   b.onclick = () => { S.bg = c; save(); applyBg(); };
   $("#swatches").appendChild(b);
 });
-const custom = document.createElement("span");
-custom.className = "sw custom"; custom.title = "직접 고르기";
-custom.innerHTML = '<input type="color" aria-label="배경색 직접 고르기">';
-custom.querySelector("input").oninput = e => { S.bg = e.target.value; save(); applyBg(); };
-$("#swatches").appendChild(custom);
+const pickSw = document.createElement("span");
+pickSw.className = "sw custom"; pickSw.title = "직접 고르기";
+pickSw.innerHTML = '<input type="color" aria-label="배경색 직접 고르기">';
+pickSw.querySelector("input").oninput = e => { S.bg = e.target.value; save(); applyBg(); };
+$("#swatches").appendChild(pickSw);
 
 Object.entries(SOUNDS).forEach(([k, v]) => $("#sound").add(new Option(v[0], k)));
 SYS.forEach(n => $("#sound").add(new Option(n, n)));
 $("#sound").value = S.sound;
 $("#sound").onchange = e => { S.sound = e.target.value; save(); SOUNDS[S.sound] ? SOUNDS[S.sound][1]() : send("play", { name: S.sound, loop: false }); };
 $("#tick").checked = S.tick;
-$("#tick").onchange = e => { S.tick = e.target.checked; save(); if (S.tick) playTick(false); };
+$("#tick").onchange = e => { S.tick = e.target.checked; save(); if (S.tick) playTick(3); };
 $("#loop").checked = S.loop;
 $("#loop").onchange = e => { S.loop = e.target.checked; save(); };
+
+// 소리 파일 넣기: 브라우저 저장소에 보관해서 다음에 켜도 남아 있어요
+let pickKind = null;
+const fileKey = k => "timer_snd_" + k;
+function fileLabel() {
+  const names = [];
+  try { if (localStorage.getItem(fileKey("tick"))) names.push("똑딱"); if (localStorage.getItem(fileKey("end"))) names.push("끝"); } catch (e) {}
+  $("#fileNote").textContent = names.length ? `사용 중: ${names.join(", ")} 소리 파일` : "";
+}
+$("#tickPick").onclick = () => { pickKind = "tick"; $("#filePick").click(); };
+$("#endPick").onclick = () => { pickKind = "end"; $("#filePick").click(); };
+$("#filePick").onchange = e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if (f.size > 3 * 1024 * 1024) { $("#fileNote").textContent = "3MB 이하 파일만 넣을 수 있어요."; return; }
+  const kind = pickKind, rd = new FileReader();
+  rd.onload = async () => {
+    try { localStorage.setItem(fileKey(kind), rd.result); } catch (err) { $("#fileNote").textContent = "파일이 너무 커서 저장하지 못했어요."; return; }
+    await loadCustom(kind, rd.result);
+    if (!custom[kind]) { $("#fileNote").textContent = "이 파일은 재생할 수 없어요."; return; }
+    if (kind === "end") { S.sound = "file"; $("#sound").value = "file"; save(); }
+    playBuf(custom[kind]); fileLabel();
+  };
+  rd.readAsDataURL(f);
+};
+function clearFile(kind) {
+  try { localStorage.removeItem(fileKey(kind)); } catch (e) {}
+  custom[kind] = null;
+  if (kind === "end" && S.sound === "file") { S.sound = "chime"; $("#sound").value = "chime"; save(); }
+  fileLabel();
+}
+$("#tickClear").onclick = () => clearFile("tick");
+$("#endClear").onclick = () => clearFile("end");
+["tick", "end"].forEach(k => { let v = null; try { v = localStorage.getItem(fileKey(k)); } catch (e) {} if (v) loadCustom(k, v); });
+fileLabel();
 
 document.addEventListener("keydown", e => {
   if (/INPUT|SELECT/.test(document.activeElement.tagName)) return;
