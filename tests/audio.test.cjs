@@ -9,12 +9,12 @@ const ctx={console,Audio,Option:function(){},Date:{now:()=>now},setInterval:f=>{
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],ctx);
 const run=s=>vm.runInContext(s,ctx);
 assert.equal(run('S.sound'),'figjam');
-run('$("#vol").oninput({target:{value:"37"}})');assert.equal(run('S.vol'),.37);assert.equal(get('#volValue').textContent,'37%');assert(Math.abs(media[0].volume-.1369)<1e-9);assert.equal(messages.at(-1).type,'volume');
+run('$("#vol").oninput({target:{value:"37"}})');assert.equal(run('S.vol'),.37);assert.equal(get('#volValue').textContent,'37%');assert(Math.abs(media[0].volume-.37)<1e-9);assert.equal(messages.at(-1).type,'volume');
 const loop=run('volumePreviewSource');assert(loop.loop);assert.equal(loop.starts,1);
 run('$("#vol").onpointerdown()');
 for(let percent=38;percent<=80;percent++) run(`$("#vol").oninput({target:{value:"${percent}"}})`);
 assert.strictEqual(run('volumePreviewSource'),loop);assert.equal(loop.starts,1);assert(!loop.stopped);
-assert(Math.abs(run('master.gain.value')-.64)<1e-9);
+assert(Math.abs(run('master.gain.value')-.8)<1e-9);
 run('$("#vol").oninput({target:{value:"0"}})');assert.strictEqual(run('volumePreviewSource'),loop);assert.equal(run('master.gain.value'),0);
 run('$("#vol").oninput({target:{value:"45"}})');assert.strictEqual(run('volumePreviewSource'),loop);assert.equal(loop.starts,1);
 run('finishVolumeAdjustment()'); jobs.get(run('volumePreviewStopTimer'))();assert(loop.stopped);assert.equal(run('volumePreviewSource'),null);
@@ -27,6 +27,6 @@ run('$("#mute").onclick()');assert.equal(media[0].volume,0);assert.equal(message
 now+=3000;run('tick()');assert(media[0].paused);assert.equal(media[1].plays,1);assert.equal(media[1].volume,0);run('done()');assert.equal(media[1].plays,1);
 run('stopAlarm()');assert(media[1].paused);assert.equal(jobs.size,0);
 run('$("#vol").oninput({target:{value:"0"}})');assert.equal(media[0].volume,0);assert.equal(media[1].volume,0);assert.equal(get('#volValue').textContent,'0%');assert(run('volumePreviewSource.loop'));assert.equal(run('master.gain.value'),0);
-run('$("#mute").onclick()');assert.equal(run('S.vol'),.5);assert.equal(media[0].volume,.25);
+run('$("#mute").onclick()');assert.equal(run('S.vol'),.5);assert.equal(media[0].volume,.5);
 run('$("#preview").onclick()');assert(!media[0].paused);assert.equal(get('#preview').textContent,'듣기 중지');run('$("#preview").onclick()');assert(media[0].paused);assert.equal(jobs.size,0);
 console.log('PASS: volume 0/37/50%, live native volume, mute, countdown once, pause/resume offset, add time, completion once, stop, preview cancellation, continuous slider loop, unchanged playback across 43 volume changes and mute, idle cleanup');

@@ -147,15 +147,15 @@ const save = () => { try { localStorage.setItem("timer2", JSON.stringify(S)); } 
 let remaining = S.total * 1000, endAt = null, ticker = null, finished = false, lastTickSec = null;
 
 // ───── 소리 ─────
-const figjamCountdown = new Audio("figjam-countdown.mp3");
-const figjamEnd = new Audio("figjam-end.mp3");
+const figjamCountdown = new Audio("figjam-countdown.wav");
+const figjamEnd = new Audio("figjam-end.wav");
 const media = [figjamCountdown, figjamEnd];
 media.forEach(a => { a.preload = "auto"; });
 const sources = new Set();
 let volumePreviewSource = null;
 let volumePreviewStopTimer = null;
 let volumeDragging = false;
-const effectiveVolume = () => S.muted ? 0 : S.vol * S.vol;
+const effectiveVolume = () => S.muted ? 0 : S.vol;
 let countdownPlaying = false;
 let previewTimer = null;
 function stopCountdown() {
@@ -201,7 +201,7 @@ function startVolumePreview() {
     for (let n = 0; n < Math.floor(0.05 * c.sampleRate); n++) {
       const t = n / c.sampleRate;
       const envelope = Math.min(1, t / 0.003) * Math.exp(-t * 140);
-      data[offset + n] = 0.35 * envelope * (Math.sin(2 * Math.PI * freq * t) + 0.2 * Math.sin(4 * Math.PI * freq * t));
+      data[offset + n] = 0.8 * envelope * (Math.sin(2 * Math.PI * freq * t) + 0.2 * Math.sin(4 * Math.PI * freq * t));
     }
   });
   const source = trackSource(c.createBufferSource());
