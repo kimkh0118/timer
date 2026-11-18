@@ -25,8 +25,11 @@
   .adj { width:44px; height:44px; border-radius:50%; font-size:24px; line-height:1; display:grid; place-items:center; }
   .adj:disabled { opacity:.3; cursor:default; transform:none; filter:none; }
   .time { min-width:5ch; text-align:center; font-size:72px; font-weight:600; letter-spacing:-2px; font-variant-numeric:tabular-nums; line-height:1; }
-  #time { cursor:text; border-radius:12px; padding:0 6px; }
-  #time:hover { background:var(--soft); }
+  #time { border-radius:12px; padding:0 4px; }
+  #time .u { cursor:pointer; border-radius:10px; padding:0 2px; }
+  #time .u:hover { background:var(--soft); }
+  #time .u.sel { box-shadow:inset 0 -4px 0 var(--accent); }
+  #time .u[hidden], #time .c[hidden] { display:none; }
   .time.edit { width:6.4ch; padding:0 6px; border:0; border-radius:12px; background:var(--soft); color:var(--fg); font-family:inherit; outline:2px solid var(--accent); }
   .time.edit[hidden] { display:none; }
   .time.warn { color:var(--accent); }
@@ -107,7 +110,7 @@
 <main class="app">
   <div class="clock">
     <button class="adj" id="minus" title="1분 빼기" aria-label="1분 빼기">−</button>
-    <div class="time" id="time" tabindex="0" role="button" title="눌러서 시간 입력" aria-label="시간 입력">05:00</div>
+    <div class="time" id="time" tabindex="0" title="분·초를 눌러 −/+ 단위 선택 · 두 번 눌러 직접 입력" aria-label="남은 시간"><span class="u" id="th" data-u="m" hidden></span><span class="c" id="tc" hidden>:</span><span class="u" id="tm" data-u="m">05</span>:<span class="u" id="ts" data-u="s">00</span></div>
     <input class="time edit" id="timeEdit" inputmode="numeric" maxlength="8" autocomplete="off" spellcheck="false" aria-label="시간 입력 (분:초)" hidden>
     <button class="adj" id="plus" title="1분 더하기" aria-label="1분 더하기">+</button>
   </div>
@@ -149,6 +152,7 @@ if (!saved.figmaAudioV1) { S.sound = "figjam"; S.figmaAudioV1 = true; }
 S.vol = Number.isFinite(Number(S.vol)) ? Math.max(0, Math.min(1, Number(S.vol))) : 0.8;
 const save = () => { try { localStorage.setItem("timer2", JSON.stringify(S)); } catch (e) {} };
 S.total = Math.max(1, Math.min(Math.round(Number(S.total)) || 300, MAX_SEC));
+let unit = "m";   // −/+ 단위: "m" 분, "s" 초
 let remaining = S.total * 1000, endAt = null, ticker = null, finished = false, lastTickSec = null, lastBadge;
 
 // ───── 소리 ─────
@@ -348,8 +352,21 @@ const leftMs = () => running() ? Math.max(0, endAt - Date.now()) : remaining;
 
 function render() {
   const left = leftMs(), txt = fmt(left), frac = S.total ? Math.min(1, left / (S.total * 1000)) : 0;
+  // 큰 시계는 분·초 칸을 따로 그려요(눌러서 단위를 고를 수 있게, 바뀐 칸만 고쳐요).
+  const t = Math.ceil(left / 1000), h = Math.floor(t / 3600), p2 = n => String(n).padStart(2, "0");
+  const parts = { th: h ? String(h) : "", tm: h ? p2(Math.floor(t % 3600 / 60)) : p2(Math.floor(t / 60)), ts: p2(t % 60) };
+  for (const id in parts) if ($("#" + id).textContent !== parts[id]) $("#" + id).textContent = parts[id];
+  $("#th").hidden = $("#tc").hidden = !h;
+  $("#tm").classList.toggle("sel", unit === "m" && !finished);
+  $("#th").classList.toggle("sel", unit === "m" && !finished);
+  $("#ts").classList.toggle("sel", unit === "s" && !finished);
+  const step = unit === "s" ? "1초" : "1분";
+  if ($("#minus").title !== `${step} 빼기`) {
+    $("#minus").title = `${step} 빼기`; $("#minus").setAttribute("aria-label", `${step} 빼기`);
+    $("#plus").title = `${step} 더하기`; $("#plus").setAttribute("aria-label", `${step} 더하기`);
+  }
+  $("#miniTime").textContent = txt;
   for (const el of [$("#time"), $("#miniTime")]) {
-    el.textContent = txt;
     el.classList.toggle("done", finished);
     el.classList.toggle("warn", running() && left <= 5000);
   }
@@ -358,11 +375,10 @@ function render() {
   $("#play").textContent = finished ? "알람 끄기" : running() ? "일시정지" : fresh ? "시작" : "계속";
   $("#miniPlay").textContent = finished ? "■" : running() ? "❚❚" : "▶";
   // 돌아가는 동안: −는 끄고 +는 "1분 더"
-  $("#minus").disabled = running() || finished || remaining <= 60000;
-  $("#plus").title = running() ? "1분 더" : "1분 더하기";
+  $("#minus").disabled = running() || finished || remaining <= (unit === "s" ? 1000 : 60000);
   const badge = running() ? txt.replace(/^0/, "") : (finished ? "!" : null);
   if (badge !== lastBadge) { lastBadge = badge; send("badge", { text: badge }); }
-  $("#hint").textContent = finished ? "스페이스 또는 Esc로 알람 끄기" : running() ? "" : "숫자를 눌러 직접 입력 · 스페이스로 시작";
+  $("#hint").textContent = finished ? "스페이스 또는 Esc로 알람 끄기" : running() ? "" : "분·초를 눌러 단위 선택 · 두 번 눌러 직접 입력";
   return left;
 }
 function tick() {
@@ -398,17 +414,18 @@ function done() {
 function stopAlarm() { finished = false; stopAlarmSound(); remaining = S.total * 1000; render(); }
 function reset() { pause(); stopAlarm(); }
 function toggle() { finished ? stopAlarm() : running() ? pause() : start(); }
-function adjust(min) {
-  if (running()) {                       // 도는 중엔 1분 더하기만
-    if (min < 0 || leftMs() + 60000 > MAX_SEC * 1000) return;
-    stopPreview(); endAt += 60000; S.total += 60; lastTickSec = null;
+function adjust(dir) {
+  const step = unit === "s" ? 1 : 60;
+  if (running()) {                       // 도는 중엔 더하기만
+    if (dir < 0 || leftMs() + step * 1000 > MAX_SEC * 1000) return;
+    stopPreview(); endAt += step * 1000; S.total += step; lastTickSec = null;
     scheduleNative();
   } else {
     if (finished) { finished = false; stopAlarmSound(); remaining = S.total * 1000; }
     const fresh = remaining === S.total * 1000;
     const cur = Math.ceil(remaining / 1000);
-    if (min < 0 && cur <= 60) return;
-    const next = Math.max(1, Math.min(cur + min * 60, MAX_SEC));
+    if (dir < 0 && cur <= step) return;
+    const next = Math.max(1, Math.min(cur + dir * step, MAX_SEC));
     remaining = next * 1000;
     S.total = fresh ? next : Math.max(next, Math.min(S.total + (next - cur), MAX_SEC));   // 일시정지 중엔 남은 시간만 바꿔요
   }
@@ -450,8 +467,14 @@ function closeEdit(apply) {
   else render();
   editWasRunning = false;
 }
-$("#time").onclick = openEdit;
-$("#time").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); openEdit(); } };
+function setUnit(u) { unit = u; render(); }
+$("#time").onclick = e => { const u = e.target.closest && e.target.closest(".u"); if (u) setUnit(u.dataset.u); };
+$("#time").ondblclick = openEdit;
+$("#time").onkeydown = e => {
+  if (e.key === "Enter") { e.preventDefault(); openEdit(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); setUnit("m"); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); setUnit("s"); }
+};
 $("#timeEdit").onkeydown = e => {
   if (e.key === "Enter") { e.preventDefault(); closeEdit(true); }
   else if (e.key === "Escape") { e.preventDefault(); closeEdit(false); }
@@ -459,8 +482,20 @@ $("#timeEdit").onkeydown = e => {
 };
 $("#timeEdit").onblur = () => closeEdit(true);
 
-$("#minus").onclick = () => adjust(-1);
-$("#plus").onclick = () => adjust(1);
+// −/+: 한 번 누르면 한 칸, 길게 누르면 계속 바뀌어요.
+function holdButton(btn, dir) {
+  let wait = null, rep = null;
+  const stop = () => { clearTimeout(wait); clearInterval(rep); wait = rep = null; };
+  btn.onpointerdown = e => {
+    if (e.button !== 0 || btn.disabled) return;
+    adjust(dir); stop();
+    wait = setTimeout(() => { rep = setInterval(() => { if (btn.disabled) return stop(); adjust(dir); }, unit === "s" ? 70 : 180); }, 400);
+  };
+  btn.onpointerup = btn.onpointerleave = btn.onpointercancel = stop;
+  btn.onclick = e => { if (e.detail === 0) adjust(dir); };   // 키보드(Enter)로 누를 때
+}
+holdButton($("#minus"), -1);
+holdButton($("#plus"), 1);
 $("#play").onclick = $("#miniPlay").onclick = toggle;
 $("#reset").onclick = reset;
 
@@ -599,6 +634,9 @@ document.addEventListener("keydown", e => {
   if (/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;
   if (e.code === "Space") { e.preventDefault(); toggle(); }
   else if (e.key === "r" || e.key === "R") reset();
+  else if (/^[0-9]$/.test(e.key) && !running() && !finished) { openEdit(); $("#timeEdit").value = e.key; e.preventDefault(); }
+  else if (e.key === "ArrowLeft") setUnit("m");
+  else if (e.key === "ArrowRight") setUnit("s");
   else if (e.key === "ArrowUp" || e.key === "+" || e.key === "=") adjust(1);
   else if (e.key === "ArrowDown" || e.key === "-") { if (!running()) adjust(-1); }
 });
