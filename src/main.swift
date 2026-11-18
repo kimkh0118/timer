@@ -32,6 +32,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     weak var window: NSWindow?
     private var onTop = false
     private var alarm: Timer?
+    private var tickTimers: [Timer] = []
     private var activity: NSObjectProtocol?
     private var sound: NSSound?
     private var normalFrame: NSRect?
@@ -45,7 +46,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "compact":
             setCompact(b["on"] as? Bool ?? false)
         case "alarm":
-            scheduleAlarm(at: b["at"] as? Double)
+            scheduleAlarm(at: b["at"] as? Double, ticks: b["ticks"] as? [Double] ?? [])
         case "busy":
             setBusy(b["on"] as? Bool ?? false)
         case "badge":
@@ -59,7 +60,10 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "finish":
             NSApp.requestUserAttention(.criticalRequest)
             NSApp.dockTile.badgeLabel = "!"
-            if let w = window, !w.isVisible { w.orderFrontRegardless() }
+            if let w = window {
+                if w.isMiniaturized { w.deminiaturize(nil) }
+                if !w.isVisible { w.orderFrontRegardless() }
+            }
         default: break
         }
     }
@@ -109,15 +113,22 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     var restoreFrame: NSRect? { normalFrame }
 
     /// 창이 가려져 있어도 정확한 시각에 화면에 "끝났어요"를 알려요.
-    private func scheduleAlarm(at ms: Double?) {
+    private func scheduleAlarm(at ms: Double?, ticks: [Double]) {
         alarm?.invalidate(); alarm = nil
+        tickTimers.forEach { $0.invalidate() }; tickTimers = []
         guard let ms = ms else { return }
+        alarm = fire(at: ms, js: "window.__nativeAlarm && window.__nativeAlarm()")
+        // 마지막 5초 소리도 창이 가려져 있을 때 늦지 않게 깨워요.
+        tickTimers = ticks.map { fire(at: $0 + 20, js: "window.__nativeTick && window.__nativeTick()") }
+    }
+
+    private func fire(at ms: Double, js: String) -> Timer {
         let t = Timer(fire: Date(timeIntervalSince1970: ms / 1000), interval: 0, repeats: false) { [weak self] _ in
-            self?.web?.evaluateJavaScript("window.__nativeAlarm && window.__nativeAlarm()")
+            self?.web?.evaluateJavaScript(js)
         }
-        t.tolerance = 0.05
+        t.tolerance = 0.02
         RunLoop.main.add(t, forMode: .common)
-        alarm = t
+        return t
     }
 
     /// 타이머가 도는 동안 macOS가 앱을 재우지 않게 해요.
@@ -178,17 +189,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         root.appearance = NSAppearance(named: .vibrantDark)
         web.frame = root.bounds
         root.addSubview(web)
-        let strip = DragStrip(frame: NSRect(x: 0, y: root.bounds.height - 26, width: root.bounds.width - 90, height: 26))
+        let strip = DragStrip(frame: NSRect(x: 0, y: root.bounds.height - 26, width: root.bounds.width - 130, height: 26))
         strip.autoresizingMask = [.width, .minYMargin]
         root.addSubview(strip)
         window.contentView = root
 
         window.center()
         window.setFrameAutosaveName("TimerMain2")
+        // 작게 보기 상태에서 강제 종료됐으면 작은 크기가 저장돼 있어요. 켤 때는 항상 보통 크기로.
+        let f = window.frame
+        if f.width < 360 || f.height < 300 {
+            window.setFrame(NSRect(x: f.minX, y: f.maxY - 320, width: 400, height: 320), display: false)
+        }
         bridge.web = web
         bridge.window = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// 화면을 그리는 프로세스가 죽으면 빈 창이 되니 다시 불러와요.
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        bridge.setCompact(false)
+        if let url = Bundle.main.url(forResource: "index", withExtension: "html") {
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -214,6 +238,8 @@ func buildMenu() -> NSMenu {
     let main = NSMenu()
     let appItem = NSMenuItem(); main.addItem(appItem)
     let appMenu = NSMenu()
+    appMenu.addItem(withTitle: "타이머에 관하여", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+    appMenu.addItem(.separator())
     appMenu.addItem(withTitle: "타이머 숨기기", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
     appMenu.addItem(.separator())
     appMenu.addItem(withTitle: "타이머 종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -221,6 +247,10 @@ func buildMenu() -> NSMenu {
 
     let editItem = NSMenuItem(); main.addItem(editItem)
     let edit = NSMenu(title: "편집")
+    edit.addItem(withTitle: "실행 취소", action: Selector(("undo:")), keyEquivalent: "z")
+    edit.addItem(withTitle: "실행 복귀", action: Selector(("redo:")), keyEquivalent: "Z")
+    edit.addItem(.separator())
+    edit.addItem(withTitle: "오려두기", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
     edit.addItem(withTitle: "복사하기", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
     edit.addItem(withTitle: "붙여넣기", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
     edit.addItem(withTitle: "전체 선택", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")

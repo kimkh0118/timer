@@ -13,13 +13,23 @@ xcrun --find swiftc >/dev/null 2>&1 || { echo "swiftc가 없어요. 'xcode-selec
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/app/Info.plist" "$APP/Contents/Info.plist"
-cp -R "$ROOT/app/Resources/." "$APP/Contents/Resources/"
-xcrun swiftc -O -target arm64-apple-macos11.0 "$ROOT/src/main.swift" -o "$APP/Contents/MacOS/Timer" -framework Cocoa -framework WebKit
+# 원본 MP3는 저장소에만 두고, 앱에는 실제로 쓰는 파일만 넣어요.
+rsync -a --exclude '*.mp3' --exclude '.DS_Store' "$ROOT/app/Resources/" "$APP/Contents/Resources/"
+cp "$ROOT/app/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+
+# Apple Silicon + Intel 둘 다 돌아가는 유니버설 앱으로 만들어요.
+TMP_BIN="$(mktemp -d)"
+for ARCH in arm64 x86_64; do
+  xcrun swiftc -O -target "$ARCH-apple-macos11.0" "$ROOT/src/main.swift" -o "$TMP_BIN/Timer-$ARCH" -framework Cocoa -framework WebKit
+done
+lipo -create "$TMP_BIN/Timer-arm64" "$TMP_BIN/Timer-x86_64" -output "$APP/Contents/MacOS/Timer"
+rm -rf "$TMP_BIN"
 xattr -cr "$APP"
 codesign --force --deep -s - "$APP"
 echo "✓ 완료: $APP"
 
 if [ "${1:-}" = "--package" ]; then
+  rm -f "$ROOT/build/Timer.zip" "$ROOT/build/Timer.dmg"
   ditto -c -k --sequesterRsrc --keepParent "$APP" "$ROOT/build/Timer.zip"
   DMG_STAGE="$(mktemp -d "$ROOT/build/dmg.XXXXXX")"
   ditto "$APP" "$DMG_STAGE/$NAME.app"

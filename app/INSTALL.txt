@@ -1,6 +1,6 @@
 타이머 설치 방법
 
-지원: Apple Silicon(M1 이상) Mac / macOS 11 이상
+지원: macOS 11 이상 (Apple Silicon·Intel Mac 모두)
 
 1. 이 창의 타이머.app을 Applications(응용 프로그램) 폴더로 드래그하세요.
 2. Finder의 응용 프로그램 폴더에서 타이머를 실행하세요.
