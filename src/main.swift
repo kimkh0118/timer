@@ -141,10 +141,9 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         if on {
             guard normalFrame == nil else { return }
             normalFrame = w.frame
-            w.contentMinSize = NSSize(width: 240, height: 90)
+            w.contentMinSize = NSSize(width: 240, height: 110)
             w.styleMask.remove(.resizable)
-            [.closeButton, .miniaturizeButton, .zoomButton].forEach { w.standardWindowButton($0)?.isHidden = true }
-            let size = NSSize(width: 290, height: 96)
+            let size = NSSize(width: 280, height: 120)
             let vf = (w.screen ?? NSScreen.main)?.visibleFrame ?? w.frame
             var origin = NSPoint(x: vf.maxX - size.width - 20, y: vf.maxY - size.height - 20)
             if let a = UserDefaults.standard.array(forKey: "compactOrigin") as? [Double], a.count == 2 {
@@ -157,7 +156,6 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             UserDefaults.standard.set([Double(w.frame.minX), Double(w.frame.minY)], forKey: "compactOrigin")
             normalFrame = nil
             w.styleMask.insert(.resizable)
-            [.closeButton, .miniaturizeButton, .zoomButton].forEach { w.standardWindowButton($0)?.isHidden = false }
             w.contentMinSize = NSSize(width: 360, height: 300)
             w.setFrame(nf, display: true, animate: true)
         }
