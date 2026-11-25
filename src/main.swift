@@ -31,6 +31,11 @@ final class DragStrip: NSView {
 /// 창이 비활성일 때도 첫 클릭이 바로 버튼에 먹히게 해요.
 final class ClickWebView: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    /// 화면이 "지금 마우스 아래는 빈 곳"이라고 알려 주면, 누르고 끌 때 창을 옮겨요.
+    var dragZone = false
+    override func mouseDown(with event: NSEvent) {
+        if dragZone, event.clickCount == 1 { window?.performDrag(with: event) } else { super.mouseDown(with: event) }
+    }
 }
 
 final class Bridge: NSObject, WKScriptMessageHandler {
@@ -49,6 +54,8 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "onTop":
             onTop = b["on"] as? Bool ?? false
             applyTopLevel()
+        case "dragZone":
+            (web as? ClickWebView)?.dragZone = b["on"] as? Bool ?? false
         case "fitHeight":
             fitHeight(b["h"] as? Double)
         case "compact":

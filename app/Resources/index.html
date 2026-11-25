@@ -720,6 +720,14 @@ myLib.forEach(x => decodeMine(x.id));
 
 // 마우스로 누른 버튼은 포커스를 풀어서, 스페이스바가 항상 시작/일시정지로 동작하게 해요.
 document.addEventListener("pointerup", e => { const b = e.target.closest && e.target.closest("button"); if (b) setTimeout(() => b.blur(), 0); });
+// 빈 곳(버튼·입력칸·시간 숫자 말고)을 잡고 끌면 창이 움직여요. 마우스 아래가 빈 곳인지 맥에 알려 줘요.
+let dragOn = null;
+const INTERACTIVE = "button, input, select, label, summary, a, .u, .sheet, .time.edit";
+document.addEventListener("mousemove", e => {
+  const on = $("#sheet").hidden && !(e.target.closest && e.target.closest(INTERACTIVE));   // 설정이 열려 있으면 빈 곳 클릭 = 설정 닫기
+  if (on !== dragOn) { dragOn = on; send("dragZone", { on }); }
+});
+document.addEventListener("mouseleave", () => { if (dragOn !== false) { dragOn = false; send("dragZone", { on: false }); } });
 // 오른쪽 클릭 메뉴(새로고침 등)로 타이머가 날아가지 않게 막아요.
 document.addEventListener("contextmenu", e => { if (!/INPUT|TEXTAREA/.test(e.target.tagName)) e.preventDefault(); });
 document.addEventListener("keydown", e => {
