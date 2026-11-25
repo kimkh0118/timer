@@ -14,6 +14,8 @@ final class MainPanel: NSPanel {
     }
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+    // 패널은 기본으로 Esc를 누르면 창이 닫혀요. Esc는 화면(설정 닫기·알람 끄기)에서 쓰도록 막아요.
+    override func cancelOperation(_ sender: Any?) {}
 }
 
 /// 창 위쪽 띠: 여기를 끌면 창이 움직여요(오른쪽 버튼 자리는 비워 둬요).
@@ -91,6 +93,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             normalFrame = w.frame
             w.contentMinSize = NSSize(width: 240, height: 110)
             w.styleMask.remove(.resizable)
+            [.closeButton, .miniaturizeButton, .zoomButton].forEach { w.standardWindowButton($0)?.isHidden = true }
             let size = NSSize(width: 280, height: 120)
             let vf = (w.screen ?? NSScreen.main)?.visibleFrame ?? w.frame
             var origin = NSPoint(x: vf.maxX - size.width - 20, y: vf.maxY - size.height - 20)
@@ -104,6 +107,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             UserDefaults.standard.set([Double(w.frame.minX), Double(w.frame.minY)], forKey: "compactOrigin")
             normalFrame = nil
             w.styleMask.insert(.resizable)
+            [.closeButton, .miniaturizeButton, .zoomButton].forEach { w.standardWindowButton($0)?.isHidden = false }
             w.contentMinSize = NSSize(width: 360, height: 300)
             w.setFrame(nf, display: true, animate: true)
         }

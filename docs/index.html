@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>타이머 — 화면 구석의 작은 맥 타이머</title>
+<meta name="description" content="항상 위에 띄워 두는 작고 깔끔한 맥 타이머. 마지막 5초 카운트다운, 작게 보기, 배경색, 내 소리.">
+<link rel="icon" href="icon.png">
+<style>
+  :root { --bg:#fbfaf9; --fg:#1d1d1f; --dim:#6e6e73; --card:#fff; --line:rgba(0,0,0,.08); --red:#e0262c; --code:#1d1d1f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111113; --fg:#f5f5f7; --dim:#a1a1a6; --card:#1c1c1f; --line:rgba(255,255,255,.1); --code:#000; } }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:0 20px; }
+  header { text-align:center; padding:72px 0 40px; }
+  header img.icon { width:96px; height:96px; filter:drop-shadow(0 8px 20px rgba(224,38,44,.3)); }
+  h1 { font-size:clamp(40px,8vw,64px); letter-spacing:-2px; margin-top:14px; }
+  .tag { font-size:20px; color:var(--dim); margin-top:6px; }
+  .cta { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:28px; }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:13px 22px; border-radius:999px; font-weight:600; text-decoration:none; }
+  .btn.primary { background:var(--red); color:#fff; }
+  .btn.ghost { border:1px solid var(--line); color:var(--fg); background:var(--card); }
+  .meta { color:var(--dim); font-size:13px; margin-top:12px; }
+  .shots { display:flex; gap:20px; justify-content:center; align-items:flex-end; flex-wrap:wrap; margin:20px 0 64px; }
+  .shots img { max-width:100%; height:auto; }
+  .shots .big { width:360px; } .shots .small { width:280px; }
+  h2 { font-size:28px; letter-spacing:-.5px; margin-bottom:16px; }
+  section { padding:40px 0; border-top:1px solid var(--line); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; }
+  .card b { display:block; font-size:17px; margin-bottom:4px; }
+  .card span { color:var(--dim); font-size:14px; }
+  .emoji { font-size:26px; display:block; margin-bottom:6px; }
+  ol { padding-left:22px; } ol li { margin:6px 0; }
+  .cmd { position:relative; background:var(--code); color:#f5f5f7; border-radius:12px; padding:16px 92px 16px 16px; font:14px ui-monospace,SFMono-Regular,Menlo,monospace; overflow-x:auto; white-space:nowrap; margin:12px 0; }
+  .copy { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:var(--red); color:#fff; border:0; border-radius:8px; padding:6px 12px; font:600 13px -apple-system,sans-serif; cursor:pointer; }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  td { padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  td:first-child { white-space:nowrap; font-weight:600; width:1%; padding-right:20px; }
+  kbd { font:13px ui-monospace,Menlo,monospace; background:var(--card); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 6px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+  @media (max-width:720px) { .two { grid-template-columns:1fr; } }
+  details { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:8px 0; }
+  summary { cursor:pointer; font-weight:600; }
+  details p, details ol { margin-top:8px; color:var(--dim); }
+  footer { text-align:center; color:var(--dim); font-size:13px; padding:40px 0 60px; border-top:1px solid var(--line); }
+  a { color:var(--red); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="icon" src="icon.png" alt="">
+    <h1>타이머</h1>
+    <p class="tag">화면 구석에 띄워 두는 작고 깔끔한 맥 타이머</p>
+    <div class="cta">
+      <a class="btn primary" href="#install">⬇ 설치하기</a>
+      <a class="btn ghost" href="https://github.com/kimkh0118/timer/releases/latest/download/Timer.dmg">Timer.dmg 받기</a>
+    </div>
+    <p class="meta">무료 · macOS 11 이상 · Apple Silicon · Intel</p>
+  </header>
+
+  <div class="shots">
+    <img class="big" src="main.png" alt="타이머 기본 화면">
+    <img class="big" src="settings.png" alt="타이머 설정 화면">
+    <img class="small" src="mini.png" alt="타이머 작게 보기">
+  </div>
+
+  <section>
+    <h2>이런 걸 할 수 있어요</h2>
+    <div class="grid">
+      <div class="card"><span class="emoji">⏱️</span><b>바로 맞추는 시간</b><span>−/+ 한 번에 1분, 초를 누르면 1초씩. 길게 누르면 쭉.</span></div>
+      <div class="card"><span class="emoji">📌</span><b>항상 위에 고정</b><span>다른 앱과 전체 화면 위에도 떠 있어요.</span></div>
+      <div class="card"><span class="emoji">🔎</span><b>작게 보기</b><span>화면 구석에 손바닥만 한 창으로.</span></div>
+      <div class="card"><span class="emoji">🔔</span><b>5초 카운트다운</b><span>끝나기 5초 전부터 소리로 알려 줘요.</span></div>
+      <div class="card"><span class="emoji">🎨</span><b>배경색</b><span>유리·8가지 색·직접 고르기.</span></div>
+      <div class="card"><span class="emoji">🎵</span><b>내 소리</b><span>9가지 소리, 맥 기본 소리, 내 mp3까지.</span></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>설치하기</h2>
+    <div class="two">
+      <div>
+        <h3>방법 1 · 한 줄 설치 <small style="color:var(--red)">추천</small></h3>
+        <ol>
+          <li><kbd>⌘</kbd> + <kbd>스페이스</kbd>를 누르고 <b>터미널</b>을 열어요.</li>
+          <li>아래 한 줄을 붙여 넣고 <kbd>Enter</kbd>.</li>
+        </ol>
+        <div class="cmd"><span id="cmd">curl -fsSL https://raw.githubusercontent.com/kimkh0118/timer/main/install.sh | bash</span><button class="copy" data-copy="cmd">복사</button></div>
+        <p style="color:var(--dim);font-size:14px">보안 경고 없이 바로 열려요. 다시 실행하면 업데이트돼요.</p>
+      </div>
+      <div>
+        <h3>방법 2 · 설치 파일(DMG)</h3>
+        <ol>
+          <li><a href="https://github.com/kimkh0118/timer/releases/latest/download/Timer.dmg">Timer.dmg</a>를 받아 더블 클릭해요.</li>
+          <li><b>타이머</b>를 <b>Applications</b> 폴더로 끌어다 놓아요.</li>
+          <li>응용 프로그램 폴더에서 타이머를 열어요.</li>
+        </ol>
+        <details>
+          <summary>"악성 코드가 없음을 확인할 수 없습니다"가 뜨면</summary>
+          <ol>
+            <li>경고 창에서 <b>완료</b>를 눌러요.</li>
+            <li><b>시스템 설정 → 개인정보 보호 및 보안</b>을 열어요.</li>
+            <li>아래쪽 타이머 옆 <b>그래도 열기</b> → 암호 입력 → <b>열기</b>.</li>
+          </ol>
+          <p>처음 한 번만 하면 돼요.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>사용 설명서</h2>
+    <table>
+      <tr><td>시간 맞추기</td><td><b>−</b> / <b>+</b> 버튼. 길게 누르면 계속 바뀌어요.</td></tr>
+      <tr><td>초 단위로</td><td>시간의 <b>초</b> 부분을 한 번 누르면 −/+가 1초씩. <b>분</b>을 누르면 다시 1분씩.</td></tr>
+      <tr><td>숫자로 입력</td><td>시간을 <b>두 번 클릭</b>하거나 숫자 키를 바로 쳐요. <code>130</code> = 1분 30초, <code>1:05:00</code> = 1시간 5분</td></tr>
+      <tr><td>시작 / 일시정지</td><td><kbd>스페이스</kbd></td></tr>
+      <tr><td>알람 끄기</td><td><kbd>스페이스</kbd> 또는 <kbd>Esc</kbd></td></tr>
+      <tr><td>초기화</td><td><kbd>R</kbd></td></tr>
+      <tr><td>고정 / 작게 보기</td><td>오른쪽 위 📌 / ↙ 버튼</td></tr>
+      <tr><td>소리·배경색</td><td>오른쪽 위 ⚙️ 설정</td></tr>
+      <tr><td>창 다시 열기</td><td><kbd>⌘</kbd><kbd>0</kbd> 또는 Dock 아이콘</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>자주 묻는 질문</h2>
+    <details><summary>소리가 안 나요</summary><p>설정에서 소리 크기와 음소거를 확인하고, <b>미리 듣기</b>로 시험해 보세요. 맥 전체 음량도 확인해 주세요.</p></details>
+    <details><summary>창이 사라졌어요</summary><p>Dock의 타이머 아이콘을 누르거나 ⌘0을 눌러요. 창을 닫아도 앱은 켜져 있어요(완전히 끄기: ⌘Q).</p></details>
+    <details><summary>지우고 싶어요</summary><p>응용 프로그램 폴더에서 타이머를 휴지통으로 옮기면 돼요.</p></details>
+    <details><summary>Windows에서도 되나요?</summary><p>아니요, 맥 전용이에요.</p></details>
+  </section>
+
+  <footer>
+    <a href="https://github.com/kimkh0118/timer">GitHub</a> · <a href="https://github.com/kimkh0118/timer/releases">모든 버전</a><br>
+    피그잼 소리의 권리는 Figma에 있습니다.
+  </footer>
+</div>
+<script>
+document.querySelectorAll(".copy").forEach(b => b.onclick = async () => {
+  const t = document.getElementById(b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(t); b.textContent = "복사됨 ✓"; } catch (e) { b.textContent = "직접 복사해 주세요"; }
+  setTimeout(() => b.textContent = "복사", 1600);
+});
+</script>
+</body>
+</html>

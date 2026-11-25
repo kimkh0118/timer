@@ -1,5 +1,8 @@
 타이머 설치 방법
 
+(더 쉬운 방법) 터미널에 아래 한 줄을 붙여 넣으면 경고 없이 설치돼요:
+curl -fsSL https://raw.githubusercontent.com/kimkh0118/timer/main/install.sh | bash
+
 지원: macOS 11 이상 (Apple Silicon·Intel Mac 모두)
 
 1. 이 창의 타이머.app을 Applications(응용 프로그램) 폴더로 드래그하세요.
