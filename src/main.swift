@@ -135,12 +135,13 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             var extra = CGFloat(h) - cur
             if let vf = (w.screen ?? NSScreen.main)?.visibleFrame { extra = max(0, min(extra, f.minY - vf.minY)) }
             guard extra > 0 else { return }
-            if sheetFrame == nil { sheetFrame = w.frame }
+            if sheetFrame == nil { sheetFrame = w.frame; w.setFrameAutosaveName("") }   // 늘린 크기는 저장하지 않아요
             f.origin.y -= extra; f.size.height += extra
             w.setFrame(f, display: true, animate: true)
         } else if let sf = sheetFrame {
             sheetFrame = nil
             w.setFrame(sf, display: true, animate: true)
+            w.setFrameAutosaveName("TimerMain2")
         }
     }
 
