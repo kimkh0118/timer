@@ -147,7 +147,8 @@
 <script>
 const $ = s => document.querySelector(s);
 const send = (type, extra = {}) => { try { window.webkit.messageHandlers.tm.postMessage({ type, ...extra }); } catch (e) {} };
-const SYS = ["Glass","Hero","Ping","Purr","Submarine","Funk","Blow","Bottle","Frog","Pop","Tink"];
+// 맥 기본 소리(윈도우판에는 없어서 숨겨요)
+const SYS = window.__WINDOWS__ ? [] : ["Glass","Hero","Ping","Purr","Submarine","Funk","Blow","Bottle","Frog","Pop","Tink"];
 const MAX_SEC = 999 * 60 + 59;
 const COLORS = ["glass", "#1d1d1f", "#ffffff", "#ffc943", "#ff8577", "#ffa3e5", "#9747ff", "#5eb5ff", "#66d575"];
 

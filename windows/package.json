@@ -1,0 +1,47 @@
+{
+  "name": "timer",
+  "productName": "Timer",
+  "version": "1.6.0",
+  "description": "작은 타이머 (윈도우판)",
+  "author": "kimkh0118",
+  "license": "UNLICENSED",
+  "main": "main.js",
+  "scripts": {
+    "prepare-web": "node prepare-web.js",
+    "start": "npm run prepare-web && electron .",
+    "dist": "npm run prepare-web && electron-builder --win nsis zip --x64 --arm64"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "local.kkh.timer",
+    "productName": "Timer",
+    "files": [
+      "main.js",
+      "preload.js",
+      "credits-preload.js",
+      "web/**/*",
+      "icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "icon.png",
+      "executableName": "Timer",
+      "artifactName": "Timer-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "타이머",
+      "uninstallDisplayName": "타이머",
+      "artifactName": "Timer-Setup-${arch}.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@33.2.1": true
+  }
+}

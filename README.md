@@ -4,11 +4,12 @@
 
 # 타이머
 
-**화면 구석에 띄워 두는 작고 깔끔한 맥 타이머**
+**화면 구석에 띄워 두는 작고 깔끔한 타이머 · 맥 & 윈도우**
 
 [![최신 버전](https://img.shields.io/github/v/release/kimkh0118/timer?label=%EC%B5%9C%EC%8B%A0%20%EB%B2%84%EC%A0%84&color=e0262c)](https://github.com/kimkh0118/timer/releases/latest)
 ![macOS 11+](https://img.shields.io/badge/macOS-11%2B-black?logo=apple)
 ![Apple Silicon · Intel](https://img.shields.io/badge/Apple%20Silicon%20%C2%B7%20Intel-%EC%A7%80%EC%9B%90-555)
+![Windows 10+](https://img.shields.io/badge/Windows-10%2B-0078D4?logo=windows)
 
 <img src="docs/main.png" width="360" alt="타이머 기본 화면">&nbsp;&nbsp;<img src="docs/settings.png" width="360" alt="설정 화면">
 
@@ -31,6 +32,8 @@
 ---
 
 ## 📥 설치하기
+
+> 🪟 **윈도우를 쓰나요?** 아래 [윈도우에 설치하기](#-윈도우에-설치하기)로 가세요. 여기부터는 맥 설치 방법이에요.
 
 ### 방법 1. 한 줄로 설치 (가장 쉬워요, 추천)
 
@@ -74,6 +77,20 @@ curl -fsSL https://raw.githubusercontent.com/kimkh0118/timer/main/install.sh | b
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kimkh0118/timer/main/install.sh | bash -s -- --uninstall
 ```
+
+### 🪟 윈도우에 설치하기
+
+1. **[Timer-Setup.exe 내려받기](https://github.com/kimkh0118/timer/releases/latest/download/Timer-Setup.exe)** (Windows 10·11, 일반 PC·ARM PC 모두 이 파일 하나)
+2. 받은 파일을 더블 클릭하면 바로 설치되고 타이머가 켜져요. 시작 메뉴에 **타이머**가 생겨요.
+3. **"Windows의 PC 보호"** 파란 창이 뜨면 → **추가 정보** → **실행**을 눌러요. (서명하지 않은 앱이라 처음 한 번 뜰 수 있어요)
+
+설치 없이 쓰고 싶으면 [ZIP (x64)](https://github.com/kimkh0118/timer/releases/latest/download/Timer-Windows-x64.zip)을 받아 압축을 풀고 `Timer.exe`를 실행해요.
+
+윈도우판에서 다른 점:
+- 작업 표시줄 대신 **시계 옆 알림 영역**에 타이머 아이콘이 있어요. 마우스를 올리면 남은 시간이 보이고, 오른쪽 클릭으로 **종료**할 수 있어요.
+- 창 왼쪽 위 ● 버튼: 빨강 = 닫기(종료), 노랑 = 최소화(알림 영역 아이콘을 눌러 다시 열기).
+- 맥 기본 소리(Glass 등)는 없어요. 나머지 소리·기능은 같아요.
+- 지우기: 설정 → 앱 → 설치된 앱 → **Timer** → 제거
 
 ---
 
@@ -150,7 +167,7 @@ Dock의 타이머 아이콘을 누르거나 `⌘0`을 눌러요.
 <details>
 <summary>Windows에서도 되나요?</summary>
 
-아니요, 맥 전용이에요 (macOS 11 이상, Apple Silicon·Intel 모두 지원).
+네! [윈도우에 설치하기](#-윈도우에-설치하기)를 보세요 (Windows 10·11).
 </details>
 
 ---
@@ -167,6 +184,7 @@ cd timer
 ```
 
 - 화면: `app/Resources/index.html` · 맥 기능(창 고정, 알람, 소리): `src/main.swift`
+- 윈도우판: `windows/` (Electron, 같은 화면 파일을 씀). `cd windows && npm install && npm run dist` → `windows/dist/Timer-Setup.exe`
 - 소리 테스트: `node tests/audio.test.cjs`
 - 아이콘 다시 만들기: `swift tools/make-icon.swift`
 
