@@ -16,6 +16,10 @@ cp "$ROOT/app/Info.plist" "$APP/Contents/Info.plist"
 # 원본 MP3는 저장소에만 두고, 앱에는 실제로 쓰는 파일만 넣어요.
 rsync -a --exclude '*.mp3' --exclude '.DS_Store' "$ROOT/app/Resources/" "$APP/Contents/Resources/"
 cp "$ROOT/app/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# 엔딩 크레딧에 들어갈 숫자(커밋 수·버전 수)를 빌드할 때 넣어요.
+COMMITS="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)"
+VERSIONS="$(git -C "$ROOT" tag 2>/dev/null | wc -l | tr -d ' ')"
+echo "window.CREDIT_STATS = { commits: $COMMITS, versions: $((VERSIONS + 1)) };" > "$APP/Contents/Resources/credits-stats.js"
 
 # Apple Silicon + Intel 둘 다 돌아가는 유니버설 앱으로 만들어요.
 TMP_BIN="$(mktemp -d)"

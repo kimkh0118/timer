@@ -70,20 +70,9 @@
   .sheet input[type=range] { width:100%; min-height:24px; accent-color:var(--accent); }
   .sheet select { background:rgba(255,255,255,.1); color:#f5f5f7; border:1px solid rgba(255,255,255,.16); border-radius:7px; padding:3px 6px; font:inherit; }
 
-  /* 엔딩 크레딧 (설정 맨 아래 숨은 버튼) */
-  .ver { align-self:center; margin-top:4px; background:none !important; color:rgba(245,245,247,.28); font-size:11px; padding:2px 8px; border-radius:6px; }
-  .ver:hover { color:rgba(245,245,247,.6); }
-  .credits { position:fixed; inset:0; z-index:20; background:#000; color:#f5f5f7; overflow:hidden; cursor:pointer; animation:fadein .6s ease-out; }
-  .credits[hidden] { display:none; }
-  .credits .roll { position:absolute; left:0; right:0; top:100%; text-align:center; animation:roll 26s linear forwards; }
-  .credits p { font-size:14px; line-height:1.5; }
-  .credits .role { font-size:11px; letter-spacing:.12em; color:rgba(245,245,247,.5); margin-top:10px; }
-  .credits .big { font-size:30px; font-weight:700; letter-spacing:.04em; }
-  .credits .dim { font-size:12px; color:rgba(245,245,247,.55); }
-  .credits .skip { position:absolute; bottom:0; left:0; right:0; padding:18px 0 8px; text-align:center; font-size:10px; color:rgba(245,245,247,.35); background:linear-gradient(transparent,#000 60%); }
-  @keyframes roll { to { transform:translateY(calc(-100% - 100vh * 0.55)); } }
-  @keyframes fadein { from { opacity:0; } }
-  @media (prefers-reduced-motion: reduce) { .credits .roll { animation:none; top:0; position:relative; padding:20px 0; } .credits { overflow-y:auto; } }
+  /* 엔딩 크레딧 버튼 (설정 맨 아래) */
+  .ver { align-self:stretch; margin-top:6px; padding:7px 0; border-radius:8px; background:rgba(255,255,255,.06) !important; color:rgba(245,245,247,.5); font-size:12px; letter-spacing:.08em; }
+  .ver:hover { color:#f5f5f7; background:rgba(255,255,255,.12) !important; }
 
   /* 간소화 창 */
   .mini { display:none; height:100%; align-items:center; justify-content:space-between; padding:14px 16px 0; gap:10px; }
@@ -123,39 +112,9 @@
   <button class="add-sound" id="addSound">＋ 내 소리 추가하기</button>
   <input type="file" id="filePick" accept="audio/*,.mp3,.wav,.m4a,.aac,.aiff,.caf" hidden>
   <p class="note" id="fileNote"></p>
-  <button class="ver" id="verBtn" title="?">타이머</button>
+  <button class="ver" id="verBtn" title="엔딩 크레딧 보기">🎬 엔딩 크레딧</button>
 </div>
 
-<div class="credits" id="credits" hidden aria-label="엔딩 크레딧">
-  <div class="roll" id="roll">
-    <p class="big">타이머</p>
-    <p class="dim">THE MOVIE</p>
-    <br>
-    <p class="role">감독</p><p>kimkh0118</p>
-    <p class="role">기획 · 잔소리</p><p>kimkh0118</p>
-    <p class="role">개발</p><p>kimkh0118 &amp; Claude</p>
-    <p class="role">버그 제작</p><p>Claude</p>
-    <p class="role">버그 발견</p><p>kimkh0118</p>
-    <br>
-    <p class="role">주연</p><p>00:00</p>
-    <p class="role">조연</p><p>− 버튼 · + 버튼</p>
-    <p class="role">특별 출연</p><p>📌 압정</p>
-    <p class="role">카메오</p><p>⚙️ 톱니바퀴</p>
-    <br>
-    <p class="role">음향</p><p>똑~딱 · 뜨드뜨드든 · 삐비비비</p>
-    <p class="role">영감</p><p>피그잼 타이머</p>
-    <p class="role">스턴트</p><p>PPT 넘기다 미끄러진 클릭</p>
-    <br>
-    <p class="role">그리고</p><p>지금 이걸 보고 있는 당신</p>
-    <br><br>
-    <p class="dim">이 타이머는 실제 시간을 바탕으로 만들어졌습니다.</p>
-    <p class="dim">촬영 중 다친 초는 없습니다.</p>
-    <br><br>
-    <p class="big">THE END</p>
-    <p class="dim" id="creditVer"></p>
-  </div>
-  <p class="skip">아무 데나 누르면 닫혀요</p>
-</div>
 
 <main class="app">
   <div class="clock">
@@ -773,33 +732,17 @@ document.addEventListener("pointerdown", e => {
 });
 // 오른쪽 클릭 메뉴(새로고침 등)로 타이머가 날아가지 않게 막아요.
 document.addEventListener("contextmenu", e => { if (!/INPUT|TEXTAREA/.test(e.target.tagName)) e.preventDefault(); });
-// ───── 엔딩 크레딧 ─────
-let creditTimer = null, creditMusic = null;
-function creditTune() {   // 잔잔한 마림바 멜로디 (소리 크기 설정을 따라가요)
-  const t0 = audio().currentTime, notes = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880, 698.46, 523.25, 659.25, 783.99, 1046.5];
-  notes.forEach((f, i) => mallet(f, t0 + i * 0.42, 0.16));
-}
+// ───── 엔딩 크레딧: 화면 전체로 영화처럼 ─────
 function openCredits() {
-  sheetFromMini = false;   // 크레딧은 큰 창에서 봐요
+  sheetFromMini = false;
   closeSheet();
-  $("#creditVer").textContent = window.__VERSION__ ? `v${window.__VERSION__}` : "";
-  const c = $("#credits"), roll = $("#roll");
-  c.hidden = false; roll.style.animation = "none"; void roll.offsetHeight; roll.style.animation = "";
-  if (!running() && !finished) { creditTune(); creditMusic = setInterval(creditTune, 12 * 420); }
-  creditTimer = setTimeout(closeCredits, 27000);
+  if (window.__NATIVE__) send("credits", { vol: effectiveVolume() });
+  else window.open(`credits.html?vol=${effectiveVolume()}`, "_blank");
 }
-function closeCredits() {
-  clearTimeout(creditTimer); clearInterval(creditMusic); creditTimer = creditMusic = null;
-  if (!running() && !finished) stopSources();
-  $("#credits").hidden = true;
-}
-$("#verBtn").textContent = window.__VERSION__ ? `타이머 v${window.__VERSION__}` : "타이머";
 $("#verBtn").onclick = e => { e.stopPropagation(); openCredits(); };
-$("#credits").onclick = closeCredits;
 
 document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === "Escape" && !$("#credits").hidden) { closeCredits(); return; }
   if (e.key === "Escape" && !$("#sheet").hidden) { closeSheet(); return; }
   if (e.key === "Escape" && finished) { stopAlarm(); return; }
   if (/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)) return;

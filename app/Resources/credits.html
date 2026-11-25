@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>엔딩 크레딧</title>
+<script src="credits-stats.js"></script>
+<style>
+  * { box-sizing:border-box; margin:0; }
+  html, body { height:100%; background:#000; color:#ece8df; overflow:hidden; cursor:none; user-select:none; -webkit-user-select:none; }
+  body { font-family:"Apple SD Gothic Neo", -apple-system, sans-serif; }
+  .serif { font-family:"Nanum Myeongjo","AppleMyungjo","Apple SD Gothic Neo",serif; }
+
+  /* 시네마 화면: 위아래 검은 띠 + 필름 잡티 + 가장자리 어둡게 */
+  .bars::before, .bars::after { content:""; position:fixed; left:0; right:0; height:9vh; background:#000; z-index:5; }
+  .bars::before { top:0; } .bars::after { bottom:0; }
+  .vignette { position:fixed; inset:0; z-index:4; pointer-events:none; background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.75) 100%); }
+  .grain { position:fixed; inset:-50%; z-index:3; pointer-events:none; opacity:.07;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    animation:grain .5s steps(4) infinite; }
+  @keyframes grain { 0%{transform:translate(0,0)} 25%{transform:translate(-3%,2%)} 50%{transform:translate(2%,-3%)} 75%{transform:translate(-2%,-1%)} }
+
+  /* 1막: 제목 */
+  .title { position:fixed; inset:0; display:grid; place-items:center; text-align:center; z-index:2; opacity:0; }
+  .title.show { animation:titleIn 7s ease-in-out forwards; }
+  @keyframes titleIn { 0%{opacity:0; letter-spacing:.6em; filter:blur(6px)} 25%{opacity:1; filter:blur(0)} 75%{opacity:1} 100%{opacity:0; letter-spacing:.32em} }
+  .title h1 { font-weight:400; font-size:clamp(48px,9vw,140px); letter-spacing:.32em; text-indent:.32em; }
+  .title p { margin-top:2vh; font-size:clamp(11px,1.1vw,16px); letter-spacing:.6em; color:#9b968c; }
+
+  /* 2막: 크레딧이 올라가요 */
+  .roll { position:fixed; left:0; right:0; top:100vh; z-index:2; padding-bottom:20vh; }
+  .roll.go { animation:roll var(--dur, 60s) linear forwards; }
+  @keyframes roll { to { transform:translateY(calc(-100% - 100vh)); } }
+  .sec { margin:13vh auto 0; width:min(780px,90vw); }
+  .head { text-align:center; font-size:clamp(11px,1vw,14px); letter-spacing:.5em; color:#8f8a80; margin-bottom:4vh; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:3vw; margin:1.7vh 0; font-size:clamp(15px,1.5vw,22px); }
+  .row .r { text-align:right; color:#9b968c; font-size:.82em; letter-spacing:.08em; align-self:center; }
+  .row .n { text-align:left; }
+  .row .n small { display:block; color:#8f8a80; font-size:.62em; margin-top:.3em; letter-spacing:.04em; }
+  .num { font-variant-numeric:tabular-nums; font-weight:700; }
+  .star { text-align:center; margin:4vh 0; }
+  .star .r { font-size:clamp(11px,1vw,14px); letter-spacing:.5em; color:#8f8a80; }
+  .star .n { margin-top:1.2vh; font-size:clamp(30px,4vw,60px); letter-spacing:.12em; }
+  .star .s { margin-top:.8vh; font-size:clamp(12px,1.1vw,15px); color:#a39e93; letter-spacing:.06em; line-height:1.8; }
+  .quote { text-align:center; font-size:clamp(17px,1.9vw,28px); line-height:1.6; margin:3.2vh 0; }
+  .quote small { display:block; font-family:"Apple SD Gothic Neo",sans-serif; color:#8f8a80; font-size:.55em; margin-top:.6vh; letter-spacing:.06em; }
+  .note { text-align:center; color:#a39e93; font-size:clamp(14px,1.35vw,19px); line-height:2.1; }
+  .note s { color:#6d695f; }
+  .big-num { text-align:center; margin:2vh 0 1vh; font-size:clamp(64px,9vw,150px); font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .big-cap { text-align:center; color:#9b968c; font-size:clamp(12px,1.1vw,16px); letter-spacing:.3em; }
+
+  /* 3막: THE END */
+  .end { position:fixed; inset:0; display:grid; place-items:center; text-align:center; z-index:2; opacity:0; pointer-events:none; }
+  .end.show { animation:endIn 3s ease-out forwards; }
+  @keyframes endIn { from{opacity:0; transform:scale(1.04)} to{opacity:1; transform:scale(1)} }
+  .end h2 { font-weight:400; font-size:clamp(40px,6vw,96px); letter-spacing:.4em; text-indent:.4em; }
+  .end p { margin-top:3vh; color:#8f8a80; letter-spacing:.2em; font-size:clamp(11px,1vw,14px); }
+
+  .hint { position:fixed; right:3vw; bottom:calc(9vh + 2vh); z-index:6; font-size:12px; color:rgba(236,232,223,.28); letter-spacing:.1em; transition:opacity 1s; }
+  .fade { position:fixed; inset:0; background:#000; z-index:10; pointer-events:none; opacity:1; transition:opacity 2s; }
+  .fade.out { opacity:0; } .fade.in { opacity:1; transition:opacity 1.2s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .grain { animation:none; }
+    .roll.go { animation:none; top:9vh; bottom:9vh; overflow-y:auto; transform:none; }
+  }
+</style>
+</head>
+<body class="bars">
+<div class="grain"></div>
+<div class="vignette"></div>
+<div class="fade" id="fade"></div>
+
+<div class="title" id="title">
+  <div><h1 class="serif">타이머</h1><p>A FILM BY 김강현 &amp; CLAUDE</p></div>
+</div>
+
+<div class="roll" id="roll">
+  <div class="sec">
+    <div class="star"><div class="r">기획 · 감독 · 잔소리</div><div class="n serif">김강현</div><div class="s">kimkh0118<br>“ㄱㄱ” 한 마디로 회사를 굴리는 사람</div></div>
+    <div class="star"><div class="r">코딩 · 버그 생산 · 사과</div><div class="n serif">Claude</div><div class="s">Claude Opus 5.5 · Anthropic<br>“원인을 찾았어요”를 가장 많이 말한 AI</div></div>
+  </div>
+
+  <div class="sec">
+    <div class="head">숫 자 로 보 는 제 작 기</div>
+    <div class="big-num" data-to="downloads">–</div>
+    <div class="big-cap" id="dlCap">누적 다운로드 수 · 실시간</div>
+    <br>
+    <div class="row"><div class="r">사장님 요청 횟수</div><div class="n"><span class="num" data-to="33">0</span>번<small>쉬는 시간 없음</small></div></div>
+    <div class="row"><div class="r">“ㄱㄱ” 횟수</div><div class="n"><span class="num" data-to="12">0</span>번<small>가장 많이 쓴 단어</small></div></div>
+    <div class="row"><div class="r">“다시 만들어 줘”</div><div class="n"><span class="num" data-to="4">0</span>번<small>엔딩 크레딧 포함</small></div></div>
+    <div class="row"><div class="r">“처음처럼 / 원래대로”</div><div class="n"><span class="num" data-to="3">0</span>번<small>결국 돌아감</small></div></div>
+    <div class="row"><div class="r">“아까 같은 느낌이 더 나은 듯”</div><div class="n"><span class="num" data-to="1">0</span>번<small>바로 이 화면</small></div></div>
+    <div class="row"><div class="r">욕한 횟수</div><div class="n"><span class="num" data-to="1">0</span>번<small>“ㅈㄴ” · 생각보다 많이 참음</small></div></div>
+    <div class="row"><div class="r">오타 수</div><div class="n">셀 수 없음<small>“붑ㄴ을 도쳐주고” · 그래도 다 알아들음</small></div></div>
+    <div class="row"><div class="r">커밋 수</div><div class="n"><span class="num" data-to="commits">0</span>개<small>한 땀 한 땀</small></div></div>
+    <div class="row"><div class="r">버전 수</div><div class="n"><span class="num" data-to="versions">0</span>개<small>완성은 언제?</small></div></div>
+    <div class="row"><div class="r">“고쳤어요” 했는데 안 고쳐진 횟수</div><div class="n"><span class="num" data-to="2">0</span>번<small>PPT 사건 외 1건</small></div></div>
+  </div>
+
+  <div class="sec">
+    <div class="head">명 대 사</div>
+    <div class="quote serif">“선택된거 표시가 ㅈㄴ 마음에 안듬”<small>— 빨간 밑줄, 하루 만에 퇴출</small></div>
+    <div class="quote serif">“왜 + 만 되냐”<small>— − 버튼 실종 사건</small></div>
+    <div class="quote serif">“??”<small>— 가장 짧고 가장 무서운 피드백</small></div>
+    <div class="quote serif">“아니 처음 처럼 해달라고”<small>— 세 번째 되돌리기</small></div>
+    <div class="quote serif">“디자인 좀 구림”<small>— 이 크레딧도 한 번 들었음</small></div>
+  </div>
+
+  <div class="sec">
+    <div class="head">C L A U D E 의 반 성 문</div>
+    <div class="note">
+      설정 버튼 절반을 창 끌기 영역으로 덮어 놓고 “가끔 안 눌려요”를 들었습니다.<br>
+      Esc 한 번에 창 전체가 사라지게 만들었습니다.<br>
+      창을 혼자 화면 위로 올려 보냈습니다.<br>
+      PPT 포커스를 고쳤다고 했는데 <s>고쳐졌습니다</s> 안 고쳐졌습니다.<br>
+      일시정지를 6번 중 1번 무시했습니다.<br>
+      그래도 다 고쳤습니다. 아마도요.
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="head">특 별 히 감 사 드 립 니 다</div>
+    <div class="note">스페이스바 · Esc · 마우스 왼쪽 버튼<br>피그잼 타이머 (영감과 소리)<br>그리고 끝까지 기다려 준 모든 초(秒)들</div>
+  </div>
+
+  <div class="sec">
+    <div class="quote serif">“시간을 재는 앱을 만드느라<br>시간이 얼마나 걸렸는지는 아무도 안 쟀다.”</div>
+  </div>
+
+  <div class="sec">
+    <div class="note">이 작품은 실제 시간을 바탕으로 만들어졌습니다.<br>촬영 중 다친 초는 없습니다.<br><br>Made with Claude Code</div>
+  </div>
+</div>
+
+<div class="end" id="end"><div><h2 class="serif">THE END</h2><p>김강현 &amp; Claude</p><p id="ver"></p></div></div>
+<div class="hint" id="hint">아무 키나 누르면 닫혀요</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search);
+const VOL = Math.max(0, Math.min(1, parseFloat(q.get("vol") ?? "0.6")));
+if (q.get("ver")) $("#ver").textContent = `타이머 v${q.get("ver")}`;
+const ST = Object.assign({ commits: 0, versions: 0 }, window.CREDIT_STATS || {});
+let downloads = null;
+let closing = false;
+const close = () => {
+  if (closing) return; closing = true;
+  $("#fade").className = "fade in";
+  try { music && music.stop(); } catch (e) {}
+  setTimeout(() => { try { window.webkit.messageHandlers.cr.postMessage("close"); } catch (e) {} }, 1200);
+};
+
+// ── 다운로드 수: GitHub 릴리스 파일들의 다운로드 횟수를 모두 더해요 (받을 때마다 늘어나요) ──
+fetch("https://api.github.com/repos/kimkh0118/timer/releases?per_page=100")
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(list => { downloads = list.reduce((a, r) => a + (r.assets || []).reduce((b, x) => b + (x.download_count || 0), 0), 0); })
+  .catch(() => { downloads = -1; });
+
+// 화면에 들어올 때 숫자가 0부터 올라가요
+function countUp(el) {
+  if (el.dataset.done) return; el.dataset.done = 1;
+  const key = el.dataset.to;
+  const go = target => {
+    if (target < 0) { el.textContent = "?"; $("#dlCap").textContent = "누적 다운로드 수 · 인터넷 연결이 필요해요"; return; }
+    const t0 = performance.now(), dur = 1600;
+    const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.textContent = Math.round(target * e).toLocaleString(); if (p < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  };
+  if (key === "downloads") { const wait = () => downloads === null ? setTimeout(wait, 150) : go(downloads); wait(); }
+  else go(isNaN(+key) ? (ST[key] || 0) : +key);
+}
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) countUp(e.target); }), { threshold: 1 });
+document.querySelectorAll("[data-to]").forEach(el => io.observe(el));
+
+// ── 음악: 잔잔한 패드 화음 + 건반 (직접 합성) ──
+let music = null;
+function startMusic() {
+  if (VOL <= 0) return;
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+  master.gain.linearRampToValueAtTime(0.5 * VOL, ac.currentTime + 4);
+  const len = ac.sampleRate * 3, ir = ac.createBuffer(2, len, ac.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+  const verb = ac.createConvolver(); verb.buffer = ir; const wet = ac.createGain(); wet.gain.value = .45;
+  verb.connect(wet).connect(master);
+  const out = ac.createGain(); out.connect(master); out.connect(verb);
+  const pad = (f, t, d, v) => [0, 1].forEach(k => {
+    const o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+    o.type = "sawtooth"; o.frequency.value = f * (k ? 1.004 : .996); lp.type = "lowpass"; lp.frequency.value = 900;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 1.5); g.gain.setValueAtTime(v, t + d - 1.5); g.gain.linearRampToValueAtTime(0, t + d);
+    o.connect(lp).connect(g).connect(out); o.start(t); o.stop(t + d + .1);
+  });
+  const keys = (f, t, v) => {
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + 2.6);
+    o.connect(g).connect(out); o.start(t); o.stop(t + 2.7);
+  };
+  const n = s => 440 * Math.pow(2, (s - 69) / 12);
+  const chords = [[48, 55, 60, 64], [47, 55, 59, 62], [45, 52, 57, 60], [41, 48, 53, 57]];
+  const melody = [[76, 0], [74, 1.5], [72, 3], [74, 0], [79, 1.5], [74, 3], [72, 0], [71, 1.5], [69, 3], [72, 0], [69, 1.5], [65, 3]];
+  const bar = 4.5; let stopped = false;
+  function schedule(from) {
+    if (stopped) return;
+    for (let b = 0; b < 4; b++) {
+      const t = from + b * bar;
+      chords[b].forEach(m => pad(n(m), t, bar + .3, .028));
+      melody.slice(b * 3, b * 3 + 3).forEach(([m, off]) => keys(n(m), t + off, .09));
+    }
+    setTimeout(() => schedule(from + 4 * bar), (from + 4 * bar - ac.currentTime - 1) * 1000);
+  }
+  schedule(ac.currentTime + .3);
+  music = { stop() { stopped = true; master.gain.cancelScheduledValues(ac.currentTime); master.gain.setValueAtTime(master.gain.value, ac.currentTime); master.gain.linearRampToValueAtTime(0, ac.currentTime + 1); setTimeout(() => ac.close(), 1200); } };
+}
+
+// ── 순서: 어둠 → 제목 → 크레딧 → THE END → 닫기 ──
+setTimeout(() => $("#fade").className = "fade out", 100);
+startMusic();
+setTimeout(() => $("#title").classList.add("show"), 1500);
+const roll = $("#roll");
+setTimeout(() => {
+  const h = roll.offsetHeight + innerHeight;
+  const dur = Math.max(45, h / 60);                  // 1초에 약 60px씩 올라가요
+  roll.style.setProperty("--dur", dur + "s");
+  roll.classList.add("go");
+  setTimeout(() => { $("#end").classList.add("show"); setTimeout(close, 7000); }, dur * 1000 - 1000);
+}, 8000);
+setTimeout(() => $("#hint").style.opacity = 0, 5000);
+
+addEventListener("keydown", close);
+addEventListener("click", close);
+addEventListener("mousemove", () => { document.body.style.cursor = "default"; clearTimeout(window.__c); window.__c = setTimeout(() => document.body.style.cursor = "none", 1500); });
+addEventListener("contextmenu", e => e.preventDefault());
+</script>
+</body>
+</html>

@@ -72,6 +72,51 @@ func activateAfterMouseUp(_ app: NSRunningApplication, waited: Int = 0) {
     }
 }
 
+/// 엔딩 크레딧: 화면 전체를 덮는 검은 창에 credits.html을 띄워요.
+final class CreditsWindow: NSWindow {
+    override var canBecomeKey: Bool { true }      // 아무 키나 눌러 닫을 수 있게
+}
+final class Credits: NSObject, WKScriptMessageHandler {
+    private var window: NSWindow?
+    private var returnTo: NSRunningApplication?
+    func show(volume: Double, version: String) {
+        guard window == nil, let screen = NSScreen.main,
+              let url = Bundle.main.url(forResource: "credits", withExtension: "html") else { return }
+        let front = NSWorkspace.shared.frontmostApplication
+        if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { returnTo = front }
+        let w = CreditsWindow(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        w.level = .screenSaver
+        w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        w.backgroundColor = .black
+        w.isOpaque = true
+        w.isReleasedWhenClosed = false
+        let cfg = WKWebViewConfiguration()
+        cfg.mediaTypesRequiringUserActionForPlayback = []
+        cfg.userContentController.add(self, name: "cr")
+        let web = WKWebView(frame: w.contentRect(forFrameRect: w.frame), configuration: cfg)
+        web.autoresizingMask = [.width, .height]
+        var comps = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        comps.queryItems = [URLQueryItem(name: "vol", value: String(volume)), URLQueryItem(name: "ver", value: version)]
+        web.loadFileURL(comps.url!, allowingReadAccessTo: url.deletingLastPathComponent())
+        w.contentView = web
+        w.alphaValue = 0
+        w.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeFirstResponder(web)
+        NSAnimationContext.runAnimationGroup { $0.duration = 0.8; w.animator().alphaValue = 1 }
+        window = w
+    }
+    func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) { close() }
+    func close() {
+        guard let w = window else { return }
+        window = nil
+        (w.contentView as? WKWebView)?.configuration.userContentController.removeScriptMessageHandler(forName: "cr")
+        w.orderOut(nil)
+        w.contentView = nil
+        if let app = returnTo, !app.isTerminated { returnTo = nil; activateAfterMouseUp(app) }
+    }
+}
+
 final class Bridge: NSObject, WKScriptMessageHandler {
     weak var web: WKWebView?
     weak var window: NSWindow?
@@ -84,6 +129,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     private var previousApp: NSRunningApplication?
     /// 시간 직접 입력 중(키보드가 필요함)
     var wantsKey = false
+    let credits = Credits()
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let b = message.body as? [String: Any], let type = b["type"] as? String else { return }
@@ -115,6 +161,9 @@ final class Bridge: NSObject, WKScriptMessageHandler {
                 activateAfterMouseUp(prev)
             }
             previousApp = nil
+        case "credits":
+            credits.show(volume: b["vol"] as? Double ?? 0.6,
+                         version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
         case "busy":
             setBusy(b["on"] as? Bool ?? false)
         case "badge":
