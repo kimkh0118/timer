@@ -44,10 +44,17 @@ final class ClickWebView: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     /// 버튼을 눌러도 창이 키보드 포커스를 가져가지 않게 해요.
     override var needsPanelToBecomeKey: Bool { false }
-    /// 화면이 "지금 마우스 아래는 빈 곳"이라고 알려 주면, 누르고 끌 때 창을 옮겨요.
-    var dragZone = false
+    /// 누르는 순간의 이벤트를 기억해 둬요. 화면이 "빈 곳을 눌렀어요"라고 알려 주면 그걸로 창을 끌어요.
+    /// (마우스를 움직일 때 미리 알려 주던 방식은, 포커스가 없을 때 움직임이 안 와서 버튼 클릭이 끌기로 바뀌곤 했어요)
+    private(set) var lastDown: NSEvent?
     override func mouseDown(with event: NSEvent) {
-        if dragZone, event.clickCount == 1 { window?.performDrag(with: event) } else { super.mouseDown(with: event) }
+        lastDown = event
+        super.mouseDown(with: event)
+    }
+    func dragFromLastDown() {
+        guard let e = lastDown, NSEvent.pressedMouseButtons & 1 != 0 else { return }
+        lastDown = nil
+        window?.performDrag(with: e)
     }
 }
 
@@ -70,8 +77,8 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "onTop":
             onTop = b["on"] as? Bool ?? false
             applyTopLevel()
-        case "dragZone":
-            (web as? ClickWebView)?.dragZone = b["on"] as? Bool ?? false
+        case "startDrag":
+            (web as? ClickWebView)?.dragFromLastDown()
         case "fitHeight":
             fitHeight(b["h"] as? Double)
         case "compact":
@@ -134,10 +141,10 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         if on {
             guard normalFrame == nil else { return }
             normalFrame = w.frame
-            w.contentMinSize = NSSize(width: 240, height: 110)
+            w.contentMinSize = NSSize(width: 240, height: 90)
             w.styleMask.remove(.resizable)
             [.closeButton, .miniaturizeButton, .zoomButton].forEach { w.standardWindowButton($0)?.isHidden = true }
-            let size = NSSize(width: 310, height: 120)
+            let size = NSSize(width: 290, height: 96)
             let vf = (w.screen ?? NSScreen.main)?.visibleFrame ?? w.frame
             var origin = NSPoint(x: vf.maxX - size.width - 20, y: vf.maxY - size.height - 20)
             if let a = UserDefaults.standard.array(forKey: "compactOrigin") as? [Double], a.count == 2 {

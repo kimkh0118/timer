@@ -86,8 +86,8 @@
   @media (prefers-reduced-motion: reduce) { .credits .roll { animation:none; top:0; position:relative; padding:20px 0; } .credits { overflow-y:auto; } }
 
   /* 간소화 창 */
-  .mini { display:none; height:100%; align-items:center; justify-content:space-between; padding:14px 16px 0; gap:10px; }
-  .mini .time { font-size:44px; min-width:0; text-align:left; }
+  .mini { display:none; height:100%; align-items:center; justify-content:space-between; padding:0 16px 3px 20px; gap:12px; }
+  .mini .time { font-size:42px; line-height:1; min-width:0; text-align:left; letter-spacing:-1px; }
   .mini-btns { display:flex; gap:6px; }
   body.compact .app, body.compact .tools, body.compact .sheet { display:none; }
   body.compact .mini { display:flex; }
@@ -177,9 +177,6 @@
     <button class="tool" id="miniPlay" aria-label="시작/일시정지">▶</button>
     <button class="tool" id="miniPin" aria-label="항상 위에 고정" aria-pressed="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>
-    </button>
-    <button class="tool" id="miniGear" title="설정" aria-label="설정">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
     </button>
     <button class="tool" id="grow" aria-label="크게 보기">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
@@ -584,13 +581,7 @@ $("#pin").onclick = $("#miniPin").onclick = () => { S.onTop = !S.onTop; save(); 
 $("#shrink").onclick = () => { closeSheet(); document.body.classList.add("compact"); send("compact", { on: true }); };
 function grow() { document.body.classList.remove("compact"); send("compact", { on: false }); }
 $("#grow").onclick = grow;
-// 작은 창에서 설정: 먼저 크게 키운 뒤(창 애니메이션이 끝나면) 설정을 열어요.
-// 설정을 닫으면 다시 작은 창으로 돌아가요.
-let sheetFromMini = false;
-$("#miniGear").onclick = () => {
-  grow(); sheetFromMini = true;
-  setTimeout(() => { $("#sheet").hidden = false; $("#gear").setAttribute("aria-expanded", "true"); fitSheet(); }, 350);
-};
+let sheetFromMini = false;   // (작은 창 설정 버튼은 없앴어요)
 
 // ───── 설정 ─────
 // 설정을 열면 다 보이게 창 높이를 맞추고, 닫으면 원래대로.
@@ -769,14 +760,13 @@ myLib.forEach(x => decodeMine(x.id));
 
 // 마우스로 누른 버튼은 포커스를 풀어서, 스페이스바가 항상 시작/일시정지로 동작하게 해요.
 document.addEventListener("pointerup", e => { const b = e.target.closest && e.target.closest("button"); if (b) setTimeout(() => b.blur(), 0); });
-// 빈 곳(버튼·입력칸·시간 숫자 말고)을 잡고 끌면 창이 움직여요. 마우스 아래가 빈 곳인지 맥에 알려 줘요.
-let dragOn = null;
-const INTERACTIVE = "button, input, select, label, summary, a, .u, .sheet, .time.edit";
-document.addEventListener("mousemove", e => {
-  const on = $("#sheet").hidden && !(e.target.closest && e.target.closest(INTERACTIVE));   // 설정이 열려 있으면 빈 곳 클릭 = 설정 닫기
-  if (on !== dragOn) { dragOn = on; send("dragZone", { on }); }
+// 빈 곳(버튼·입력칸·시간 숫자 말고)을 누르고 끌면 창이 움직여요. 누르는 순간에 빈 곳인지 판단해요.
+const INTERACTIVE = "button, input, select, label, summary, a, .u, .sheet, .time.edit, .credits";
+document.addEventListener("pointerdown", e => {
+  if (e.button !== 0 || !$("#sheet").hidden) return;   // 설정이 열려 있으면 빈 곳 클릭 = 설정 닫기
+  if (e.target.closest && e.target.closest(INTERACTIVE)) return;
+  send("startDrag");
 });
-document.addEventListener("mouseleave", () => { if (dragOn !== false) { dragOn = false; send("dragZone", { on: false }); } });
 // 오른쪽 클릭 메뉴(새로고침 등)로 타이머가 날아가지 않게 막아요.
 document.addEventListener("contextmenu", e => { if (!/INPUT|TEXTAREA/.test(e.target.tagName)) e.preventDefault(); });
 // ───── 엔딩 크레딧 ─────
