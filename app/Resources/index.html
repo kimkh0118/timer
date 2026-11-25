@@ -35,7 +35,6 @@
   .time.warn { color:var(--accent); }
   .time.done { color:var(--accent); animation:blink 1s steps(2) infinite; }
   @keyframes blink { 50% { opacity:.3; } }
-  .hint { font-size:12px; color:var(--dim); text-align:center; min-height:1.3em; }
   .bar { width:min(100%,300px); height:4px; border-radius:2px; background:var(--soft); overflow:hidden; }
   .bar i { display:block; height:100%; width:100%; background:var(--accent); transition:width .3s linear; }
   .ctrl { display:flex; gap:10px; }
@@ -123,7 +122,6 @@
     <button id="reset">초기화</button>
     <button id="play" class="play">시작</button>
   </div>
-  <p class="hint" id="hint" aria-live="polite"></p>
 </main>
 
 <div class="mini">
@@ -132,6 +130,9 @@
     <button class="tool" id="miniPlay" aria-label="시작/일시정지">▶</button>
     <button class="tool" id="miniPin" aria-label="항상 위에 고정" aria-pressed="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>
+    </button>
+    <button class="tool" id="miniGear" title="설정" aria-label="설정">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg>
     </button>
     <button class="tool" id="grow" aria-label="크게 보기">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
@@ -380,10 +381,10 @@ function render() {
   $("#play").textContent = finished ? "알람 끄기" : running() ? "일시정지" : fresh ? "시작" : "계속";
   $("#miniPlay").textContent = finished ? "■" : running() ? "❚❚" : "▶";
   // 돌아가는 동안: −는 끄고 +는 "1분 더"
-  $("#minus").disabled = running() || finished || remaining <= (unit === "s" ? 1000 : 60000);
+  const stepMs = unit === "s" ? 1000 : 60000;
+  $("#minus").disabled = finished || (running() ? left <= stepMs : remaining <= stepMs);
   const badge = running() ? txt.replace(/^0/, "") : (finished ? "!" : null);
   if (badge !== lastBadge) { lastBadge = badge; send("badge", { text: badge }); }
-  $("#hint").textContent = finished ? "스페이스 또는 Esc로 알람 끄기" : running() ? "" : "분·초를 눌러 단위 선택 · 두 번 눌러 직접 입력";
   return left;
 }
 function tick() {
@@ -421,9 +422,11 @@ function reset() { pause(); stopAlarm(); }
 function toggle() { finished ? stopAlarm() : running() ? pause() : start(); }
 function adjust(dir) {
   const step = unit === "s" ? 1 : 60;
-  if (running()) {                       // 도는 중엔 더하기만
-    if (dir < 0 || leftMs() + step * 1000 > MAX_SEC * 1000) return;
-    stopPreview(); endAt += step * 1000; S.total += step; lastTickSec = null;
+  if (running()) {
+    const left = leftMs();
+    if (dir > 0 && left + step * 1000 > MAX_SEC * 1000) return;
+    if (dir < 0 && left <= step * 1000) return;            // 빼면 0 이하가 되면 안 돼요
+    stopPreview(); endAt += dir * step * 1000; S.total = Math.max(1, S.total + dir * step); lastTickSec = null;
     scheduleNative();
   } else {
     if (finished) { finished = false; stopAlarmSound(); remaining = S.total * 1000; }
@@ -512,13 +515,25 @@ function applyPin() {
 }
 $("#pin").onclick = $("#miniPin").onclick = () => { S.onTop = !S.onTop; save(); applyPin(); };
 $("#shrink").onclick = () => { closeSheet(); document.body.classList.add("compact"); send("compact", { on: true }); };
-$("#grow").onclick = () => { document.body.classList.remove("compact"); send("compact", { on: false }); };
+function grow() { document.body.classList.remove("compact"); send("compact", { on: false }); }
+$("#grow").onclick = grow;
+// 작은 창에서 설정: 먼저 크게 키운 뒤(창 애니메이션이 끝나면) 설정을 열어요.
+$("#miniGear").onclick = () => {
+  grow();
+  setTimeout(() => { $("#sheet").hidden = false; $("#gear").setAttribute("aria-expanded", "true"); }, 350);
+};
 
 // ───── 설정 ─────
 const closeSheet = () => { stopVolumePreview(); $("#sheet").hidden = true; $("#gear").setAttribute("aria-expanded", "false"); };
 $("#gear").onclick = e => { e.stopPropagation(); const open = $("#sheet").hidden; $("#sheet").hidden = !open; $("#gear").setAttribute("aria-expanded", String(open)); };
 $("#sheet").onclick = e => e.stopPropagation();
-document.addEventListener("click", closeSheet);
+// 설정 밖(타이머 창 어디든, 꺼진 버튼 포함)을 누르면 닫혀요.
+document.addEventListener("pointerdown", e => {
+  if ($("#sheet").hidden) return;
+  if (e.target.closest && (e.target.closest("#sheet") || e.target.closest("#gear"))) return;
+  closeSheet();
+}, true);
+window.__closeSheet = () => closeSheet();   // 창 맨 위(끌기 영역)를 눌렀을 때 맥 쪽에서 불러요
 
 function isLight(hex) {
   const n = parseInt(hex.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;

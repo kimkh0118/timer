@@ -21,7 +21,11 @@ final class MainPanel: NSPanel {
 /// 창 위쪽 띠: 여기를 끌면 창이 움직여요(오른쪽 버튼 자리는 비워 둬요).
 final class DragStrip: NSView {
     override var mouseDownCanMoveWindow: Bool { true }
-    override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+    weak var web: WKWebView?
+    override func mouseDown(with event: NSEvent) {
+        web?.evaluateJavaScript("window.__closeSheet && window.__closeSheet()")
+        window?.performDrag(with: event)
+    }
 }
 
 /// 창이 비활성일 때도 첫 클릭이 바로 버튼에 먹히게 해요.
@@ -94,7 +98,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             w.contentMinSize = NSSize(width: 240, height: 110)
             w.styleMask.remove(.resizable)
             [.closeButton, .miniaturizeButton, .zoomButton].forEach { w.standardWindowButton($0)?.isHidden = true }
-            let size = NSSize(width: 280, height: 120)
+            let size = NSSize(width: 310, height: 120)
             let vf = (w.screen ?? NSScreen.main)?.visibleFrame ?? w.frame
             var origin = NSPoint(x: vf.maxX - size.width - 20, y: vf.maxY - size.height - 20)
             if let a = UserDefaults.standard.array(forKey: "compactOrigin") as? [Double], a.count == 2 {
@@ -195,6 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         root.addSubview(web)
         let strip = DragStrip(frame: NSRect(x: 0, y: root.bounds.height - 26, width: root.bounds.width - 130, height: 26))
         strip.autoresizingMask = [.width, .minYMargin]
+        strip.web = web
         root.addSubview(strip)
         window.contentView = root
 
