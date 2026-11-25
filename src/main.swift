@@ -49,6 +49,8 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         case "onTop":
             onTop = b["on"] as? Bool ?? false
             applyTopLevel()
+        case "fitHeight":
+            fitHeight(b["h"] as? Double)
         case "compact":
             setCompact(b["on"] as? Bool ?? false)
         case "alarm":
@@ -118,7 +120,29 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         applyTopLevel()
     }
 
-    var restoreFrame: NSRect? { normalFrame }
+    var restoreFrame: NSRect? { normalFrame ?? sheetFrame }
+
+    /// 설정 창이 다 보이도록 창을 잠깐 아래로 늘렸다가, 닫으면 원래 크기로 돌려요.
+    private var sheetFrame: NSRect?
+    func fitHeight(_ h: Double?) {
+        guard let w = window, normalFrame == nil else { return }
+        if let h = h {
+            let cur = w.contentRect(forFrameRect: w.frame).height
+            guard CGFloat(h) > cur else { return }
+            if sheetFrame == nil { sheetFrame = w.frame }
+            var f = w.frame
+            let extra = CGFloat(h) - cur
+            f.origin.y -= extra; f.size.height += extra
+            if let vf = (w.screen ?? NSScreen.main)?.visibleFrame, f.minY < vf.minY {   // 화면 아래로 넘치면 위로 올려요
+                f.origin.y = vf.minY
+                f.size.height = min(f.size.height, vf.height)
+            }
+            w.setFrame(f, display: true, animate: true)
+        } else if let sf = sheetFrame {
+            sheetFrame = nil
+            w.setFrame(sf, display: true, animate: true)
+        }
+    }
 
     /// 창이 가려져 있어도 정확한 시각에 화면에 "끝났어요"를 알려요.
     private func scheduleAlarm(at ms: Double?, ticks: [Double]) {

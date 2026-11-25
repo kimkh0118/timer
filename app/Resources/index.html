@@ -42,14 +42,11 @@
   .play { background:var(--accent) !important; color:#fff; min-width:110px; }
 
   /* 설정 */
-  .sheet { position:fixed; top:44px; right:10px; width:min(290px,calc(100vw - 20px)); max-height:calc(100vh - 52px); overflow-y:auto; padding:12px 14px; border-radius:14px; background:rgba(30,30,32,.97); color:#f5f5f7; box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; flex-direction:column; gap:8px; z-index:6; font-size:13px; }
-  .pair { display:flex; align-items:center; gap:6px; }
-  .sheet details summary { cursor:pointer; font-size:12px; color:rgba(245,245,247,.7); }
-  .sheet details .files { margin-top:8px; }
+  .sheet { position:fixed; top:44px; right:10px; width:min(300px,calc(100vw - 20px)); max-height:calc(100vh - 54px); overflow-y:auto; padding:16px; border-radius:14px; background:rgba(30,30,32,.96); color:#f5f5f7; box-shadow:0 10px 30px rgba(0,0,0,.35); display:flex; flex-direction:column; gap:12px; z-index:6; }
   .sheet[hidden] { display:none; }
   .sheet h3 { font-size:12px; font-weight:600; color:rgba(245,245,247,.6); }
-  .swatches { display:flex; flex-wrap:wrap; gap:6px; }
-  .sw { width:22px; height:22px; border-radius:50%; box-shadow:inset 0 0 0 1px rgba(255,255,255,.25); }
+  .swatches { display:flex; flex-wrap:wrap; gap:7px; }
+  .sw { width:26px; height:26px; border-radius:50%; box-shadow:inset 0 0 0 1px rgba(255,255,255,.25); }
   .sw[aria-pressed="true"] { box-shadow:0 0 0 2px #fff; }
   .sw.glass { background:linear-gradient(135deg,rgba(255,255,255,.35),rgba(255,255,255,.05)); }
   .sw input { width:100%; height:100%; opacity:0; cursor:pointer; }
@@ -62,7 +59,7 @@
   .volume-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
   #volValue { font-variant-numeric:tabular-nums; min-width:4ch; text-align:right; }
   .sound-actions { display:flex; gap:8px; }
-  .sound-actions button { flex:1; min-height:28px; border-radius:8px; background:rgba(255,255,255,.12); color:#f5f5f7; }
+  .sound-actions button { flex:1; min-height:32px; border-radius:8px; background:rgba(255,255,255,.12); color:#f5f5f7; }
   .sound-actions button[aria-pressed="true"] { background:#e0262c; }
   .sheet input[type=range] { width:100%; min-height:24px; accent-color:var(--accent); }
   .sheet select { background:rgba(255,255,255,.1); color:#f5f5f7; border:1px solid rgba(255,255,255,.16); border-radius:7px; padding:3px 6px; font:inherit; }
@@ -90,22 +87,21 @@
 </div>
 
 <div class="sheet" id="sheet" hidden>
+  <h3>배경색</h3>
+  <div class="swatches" id="swatches"></div>
   <h3>소리</h3>
   <div class="volume-head"><label for="vol">소리 크기</label><output id="volValue" for="vol">80%</output></div>
   <input type="range" id="vol" min="0" max="100" step="1" aria-label="소리 크기">
   <div class="sound-actions"><button id="mute" aria-pressed="false">음소거</button><button id="preview">미리 듣기</button></div>
   <label>끝날 때 <select id="sound"></select></label>
-  <label>마지막 5초 <span class="pair"><select id="tickSound" aria-label="5초 소리 종류"></select><input type="checkbox" id="tick" aria-label="마지막 5초 소리 켜기"></span></label>
+  <label>마지막 5초 소리 <input type="checkbox" id="tick"></label>
+  <label>5초 소리 종류 <select id="tickSound"></select></label>
   <label>끌 때까지 울리기 <input type="checkbox" id="loop"></label>
-  <h3>배경색</h3>
-  <div class="swatches" id="swatches"></div>
-  <details>
-    <summary>내 소리 파일 넣기 (mp3·wav·m4a)</summary>
-    <div class="files">
-      <span>5초 소리</span><button id="tickPick">고르기</button><button id="tickClear" aria-label="5초 소리 파일 지우기">기본</button>
-      <span>끝 소리</span><button id="endPick">고르기</button><button id="endClear" aria-label="끝 소리 파일 지우기">기본</button>
-    </div>
-  </details>
+  <h3>내 소리 파일 (mp3·wav·m4a)</h3>
+  <div class="files">
+    <span>똑딱</span><button id="tickPick">고르기</button><button id="tickClear" aria-label="똑딱 파일 지우기">기본</button>
+    <span>끝</span><button id="endPick">고르기</button><button id="endClear" aria-label="끝 소리 파일 지우기">기본</button>
+  </div>
   <input type="file" id="filePick" accept="audio/*" hidden>
   <p class="note" id="fileNote"></p>
 </div>
@@ -524,8 +520,24 @@ $("#miniGear").onclick = () => {
 };
 
 // ───── 설정 ─────
-const closeSheet = () => { stopVolumePreview(); $("#sheet").hidden = true; $("#gear").setAttribute("aria-expanded", "false"); };
-$("#gear").onclick = e => { e.stopPropagation(); const open = $("#sheet").hidden; $("#sheet").hidden = !open; $("#gear").setAttribute("aria-expanded", String(open)); };
+// 설정을 열면 다 보이게 창 높이를 맞추고, 닫으면 원래대로.
+function fitSheet() {
+  const sh = $("#sheet");
+  if (sh.hidden) return;
+  const need = sh.offsetTop + sh.scrollHeight + 12;
+  if (need > window.innerHeight) send("fitHeight", { h: need });
+}
+const closeSheet = () => {
+  if ($("#sheet").hidden) return;
+  stopVolumePreview(); $("#sheet").hidden = true; $("#gear").setAttribute("aria-expanded", "false");
+  send("fitHeight", { h: null });
+};
+$("#gear").onclick = e => {
+  e.stopPropagation();
+  if (!$("#sheet").hidden) return closeSheet();
+  $("#sheet").hidden = false; $("#gear").setAttribute("aria-expanded", "true");
+  fitSheet();
+};
 $("#sheet").onclick = e => e.stopPropagation();
 // 설정 밖(타이머 창 어디든, 꺼진 버튼 포함)을 누르면 닫혀요.
 document.addEventListener("pointerdown", e => {
