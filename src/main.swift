@@ -129,14 +129,14 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         if let h = h {
             let cur = w.contentRect(forFrameRect: w.frame).height
             guard CGFloat(h) > cur else { return }
-            if sheetFrame == nil { sheetFrame = w.frame }
+            // 창 위쪽은 그대로 두고 아래로만 늘려요(창이 위로 움직이지 않게).
+            // 화면 아래 공간이 모자라면 거기까지만 늘리고, 나머지는 설정 안에서 스크롤돼요.
             var f = w.frame
-            let extra = CGFloat(h) - cur
+            var extra = CGFloat(h) - cur
+            if let vf = (w.screen ?? NSScreen.main)?.visibleFrame { extra = max(0, min(extra, f.minY - vf.minY)) }
+            guard extra > 0 else { return }
+            if sheetFrame == nil { sheetFrame = w.frame }
             f.origin.y -= extra; f.size.height += extra
-            if let vf = (w.screen ?? NSScreen.main)?.visibleFrame, f.minY < vf.minY {   // 화면 아래로 넘치면 위로 올려요
-                f.origin.y = vf.minY
-                f.size.height = min(f.size.height, vf.height)
-            }
             w.setFrame(f, display: true, animate: true)
         } else if let sf = sheetFrame {
             sheetFrame = nil
@@ -184,7 +184,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     func stopAll() { sound?.stop(); setBusy(false) }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
     var window: NSWindow!
     let bridge = Bridge()
 
@@ -196,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
         let web = ClickWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
+        web.uiDelegate = self
         web.setValue(false, forKey: "drawsBackground")
         web.autoresizingMask = [.width, .height]
         if let url = Bundle.main.url(forResource: "index", withExtension: "html") {
@@ -238,6 +239,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         bridge.window = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// 화면의 파일 고르기(내 소리 추가)에 맥 파일 선택 창을 띄워요.
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.allowedFileTypes = ["mp3", "wav", "m4a", "aac", "aif", "aiff", "caf"]
+        panel.message = "타이머에 넣을 소리 파일을 골라 주세요"
+        panel.prompt = "추가"
+        // 타이머 창이 좁아서 창에 붙이지 않고 따로 띄워요.
+        NSApp.activate(ignoringOtherApps: true)
+        panel.begin { r in completionHandler(r == .OK ? panel.urls : nil) }
+    }
+
+    /// 화면의 확인 질문(예: 내 소리 지우기)을 맥 알림 창으로 보여 줘요.
+    func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+        let a = NSAlert()
+        a.messageText = message
+        a.addButton(withTitle: "지우기")
+        a.addButton(withTitle: "취소")
+        a.beginSheetModal(for: window) { r in completionHandler(r == .alertFirstButtonReturn) }
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+        let a = NSAlert(); a.messageText = message
+        a.beginSheetModal(for: window) { _ in completionHandler() }
     }
 
     /// 화면을 그리는 프로세스가 죽으면 빈 창이 되니 다시 불러와요.
