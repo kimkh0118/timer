@@ -568,7 +568,11 @@ function holdButton(btn, dir) {
 }
 holdButton($("#minus"), -1);
 holdButton($("#plus"), 1);
-$("#play").onclick = $("#miniPlay").onclick = toggle;
+// 시작/일시정지는 버튼이 눌리는 순간 바로 동작해요. (뗄 때 다른 앱으로 포커스가 넘어가도 클릭이 빠지지 않게)
+for (const b of [$("#play"), $("#miniPlay")]) {
+  b.onpointerdown = e => { if (e.button === 0) { e.preventDefault(); toggle(); } };
+  b.onclick = e => { if (e.detail === 0) toggle(); };   // 키보드(Enter)로 누를 때만
+}
 $("#reset").onclick = reset;
 
 // ───── 고정 / 작게 보기 ─────

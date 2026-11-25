@@ -58,6 +58,20 @@ final class ClickWebView: WKWebView {
     }
 }
 
+/// 다른 앱에 키보드를 돌려줄 때, 마우스 버튼을 다 뗀 다음에 돌려줘요.
+/// (누르는 중에 앱이 바뀌면 타이머 버튼 클릭이 완성되지 않아서 가끔 안 눌린 것처럼 돼요)
+func activateAfterMouseUp(_ app: NSRunningApplication, waited: Int = 0) {
+    if NSEvent.pressedMouseButtons & 1 != 0 && waited < 100 {      // 최대 약 3초까지 기다려요
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { activateAfterMouseUp(app, waited: waited + 1) }
+        return
+    }
+    // 마우스를 뗀 직후 클릭이 화면에 전달될 틈을 조금 줘요.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        guard !app.isTerminated else { return }
+        if #available(macOS 14.0, *) { app.activate() } else { app.activate(options: []) }
+    }
+}
+
 final class Bridge: NSObject, WKScriptMessageHandler {
     weak var web: WKWebView?
     weak var window: NSWindow?
@@ -98,7 +112,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             // 입력이 끝나면 키보드를 원래 앱(PPT 등)에 돌려줘요.
             if let prev = previousApp, !NSApp.isActive {
                 previousApp = nil
-                if #available(macOS 14.0, *) { prev.activate() } else { prev.activate(options: []) }
+                activateAfterMouseUp(prev)
             }
             previousApp = nil
         case "busy":
@@ -282,7 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         bridge.window = window
         (window as? MainPanel)?.onUnwantedKey = { [weak self] in
             guard let self = self, !self.bridge.wantsKey, let prev = self.lastOtherApp, !prev.isTerminated else { return }
-            if #available(macOS 14.0, *) { prev.activate() } else { prev.activate(options: []) }
+            activateAfterMouseUp(prev)
         }
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(otherAppActivated(_:)),
                                                           name: NSWorkspace.didActivateApplicationNotification, object: nil)
@@ -335,7 +349,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let clickedHere = NSEvent.pressedMouseButtons & 1 != 0 && window.isVisible && window.frame.contains(NSEvent.mouseLocation)
         if clickedHere, !bridge.wantsKey, let prev = lastOtherApp, !prev.isTerminated {
             (window as? MainPanel)?.allowKey = false
-            if #available(macOS 14.0, *) { prev.activate() } else { prev.activate(options: []) }
+            activateAfterMouseUp(prev)
             return
         }
         // 직접 앞으로 불렀을 때(⌘Tab·Dock·처음 켤 때)는 단축키를 쓸 수 있게 키보드를 받아요.
