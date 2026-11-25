@@ -10,7 +10,9 @@ final class MainPanel: NSPanel {
         super.init(contentRect: contentRect, styleMask: style, backing: backing, defer: flag)
         hidesOnDeactivate = false
         isFloatingPanel = false
-        becomesKeyOnlyIfNeeded = false
+        // 눌러도 다른 앱(예: PPT)의 포커스를 뺏지 않아요. 키보드가 필요할 때만 잠깐 가져와요.
+        styleMask.insert(.nonactivatingPanel)
+        becomesKeyOnlyIfNeeded = true
     }
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
@@ -31,6 +33,8 @@ final class DragStrip: NSView {
 /// 창이 비활성일 때도 첫 클릭이 바로 버튼에 먹히게 해요.
 final class ClickWebView: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    /// 버튼을 눌러도 창이 키보드 포커스를 가져가지 않게 해요.
+    override var needsPanelToBecomeKey: Bool { false }
     /// 화면이 "지금 마우스 아래는 빈 곳"이라고 알려 주면, 누르고 끌 때 창을 옮겨요.
     var dragZone = false
     override func mouseDown(with event: NSEvent) {
@@ -47,6 +51,7 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     private var activity: NSObjectProtocol?
     private var sound: NSSound?
     private var normalFrame: NSRect?
+    private var previousApp: NSRunningApplication?
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let b = message.body as? [String: Any], let type = b["type"] as? String else { return }
@@ -62,6 +67,18 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             setCompact(b["on"] as? Bool ?? false)
         case "alarm":
             scheduleAlarm(at: b["at"] as? Double, ticks: b["ticks"] as? [Double] ?? [])
+        case "needKey":
+            // 시간 직접 입력처럼 키보드가 필요할 때만: 지금 앞에 있던 앱을 기억하고 키보드를 잠깐 가져와요.
+            let front = NSWorkspace.shared.frontmostApplication
+            if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
+            window?.makeKey()
+        case "releaseKey":
+            // 입력이 끝나면 키보드를 원래 앱(PPT 등)에 돌려줘요.
+            if let prev = previousApp, !NSApp.isActive {
+                previousApp = nil
+                if #available(macOS 14.0, *) { prev.activate() } else { prev.activate(options: []) }
+            }
+            previousApp = nil
         case "busy":
             setBusy(b["on"] as? Bool ?? false)
         case "badge":
@@ -87,12 +104,10 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     func applyTopLevel() {
         guard let w = window else { return }
         if onTop {
-            w.styleMask.insert(.nonactivatingPanel)
             w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             w.level = .floating
             if w.isVisible { w.orderFrontRegardless() }
         } else {
-            w.styleMask.remove(.nonactivatingPanel)
             w.collectionBehavior = []
             w.level = .normal
         }
@@ -200,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.add(bridge, name: "tm")
-        config.userContentController.addUserScript(WKUserScript(source: "window.__NATIVE__ = true;", injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        config.userContentController.addUserScript(WKUserScript(source: "window.__NATIVE__ = true; window.__VERSION__ = \"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")\";", injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         let web = ClickWebView(frame: .zero, configuration: config)
         web.navigationDelegate = self
