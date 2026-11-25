@@ -7,14 +7,23 @@ import WebKit
 /// 패널 창: 압정(항상 위에)을 켜면 다른 앱의 전체 화면 위에도 뜰 수 있어요.
 final class MainPanel: NSPanel {
     override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing: NSWindow.BackingStoreType, defer flag: Bool) {
-        super.init(contentRect: contentRect, styleMask: style, backing: backing, defer: flag)
+        // "눌러도 앱을 활성화하지 않음"은 창을 만드는 순간에 넣어야 맥이 지켜 줘요(나중에 넣으면 무시돼요).
+        super.init(contentRect: contentRect, styleMask: style.union(.nonactivatingPanel), backing: backing, defer: flag)
         hidesOnDeactivate = false
         isFloatingPanel = false
         // 눌러도 다른 앱(예: PPT)의 포커스를 뺏지 않아요. 키보드가 필요할 때만 잠깐 가져와요.
-        styleMask.insert(.nonactivatingPanel)
         becomesKeyOnlyIfNeeded = true
     }
-    override var canBecomeKey: Bool { true }
+    /// 창이 키보드를 가져도 되는 때만 true. 평소엔 false라서, 버튼을 눌러도 PPT 같은 다른 앱이 키보드를 계속 가져요.
+    /// (시간 직접 입력할 때, 또는 ⌘Tab·Dock으로 타이머 앱을 앞으로 불렀을 때만 true)
+    var allowKey = false
+    override var canBecomeKey: Bool { allowKey }
+    /// 허락 없이 키보드를 받게 되면(어떤 이유로든) 바로 원래 앱에 돌려줘요.
+    var onUnwantedKey: (() -> Void)?
+    override func becomeKey() {
+        super.becomeKey()
+        if !allowKey { DispatchQueue.main.async { [weak self] in self?.onUnwantedKey?() } }
+    }
     override var canBecomeMain: Bool { true }
     // 패널은 기본으로 Esc를 누르면 창이 닫혀요. Esc는 화면(설정 닫기·알람 끄기)에서 쓰도록 막아요.
     override func cancelOperation(_ sender: Any?) {}
@@ -52,6 +61,8 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     private var sound: NSSound?
     private var normalFrame: NSRect?
     private var previousApp: NSRunningApplication?
+    /// 시간 직접 입력 중(키보드가 필요함)
+    var wantsKey = false
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let b = message.body as? [String: Any], let type = b["type"] as? String else { return }
@@ -71,8 +82,12 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             // 시간 직접 입력처럼 키보드가 필요할 때만: 지금 앞에 있던 앱을 기억하고 키보드를 잠깐 가져와요.
             let front = NSWorkspace.shared.frontmostApplication
             if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
+            wantsKey = true
+            (window as? MainPanel)?.allowKey = true
             window?.makeKey()
         case "releaseKey":
+            wantsKey = false
+            if !NSApp.isActive { (window as? MainPanel)?.allowKey = false; window?.resignKey() }
             // 입력이 끝나면 키보드를 원래 앱(PPT 등)에 돌려줘요.
             if let prev = previousApp, !NSApp.isActive {
                 previousApp = nil
@@ -260,6 +275,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         bridge.web = web
         bridge.window = window
+        (window as? MainPanel)?.onUnwantedKey = { [weak self] in
+            guard let self = self, !self.bridge.wantsKey, let prev = self.lastOtherApp, !prev.isTerminated else { return }
+            if #available(macOS 14.0, *) { prev.activate() } else { prev.activate(options: []) }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(otherAppActivated(_:)),
+                                                          name: NSWorkspace.didActivateApplicationNotification, object: nil)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -305,6 +326,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func applicationDidBecomeActive(_ notification: Notification) {
         if NSApp.dockTile.badgeLabel == "!" { NSApp.dockTile.badgeLabel = nil }
+        // 타이머 창을 마우스로 눌러서 앞으로 나온 거라면, 키보드를 원래 앱(PPT 등)에 바로 돌려줘요.
+        let clickedHere = NSEvent.pressedMouseButtons & 1 != 0 && window.isVisible && window.frame.contains(NSEvent.mouseLocation)
+        if clickedHere, !bridge.wantsKey, let prev = lastOtherApp, !prev.isTerminated {
+            (window as? MainPanel)?.allowKey = false
+            if #available(macOS 14.0, *) { prev.activate() } else { prev.activate(options: []) }
+            return
+        }
+        // 직접 앞으로 불렀을 때(⌘Tab·Dock·처음 켤 때)는 단축키를 쓸 수 있게 키보드를 받아요.
+        (window as? MainPanel)?.allowKey = true
+        if window.isVisible { window.makeKey() }
+    }
+    /// 마지막으로 앞에 있던 다른 앱(키보드를 돌려줄 곳)
+    var lastOtherApp: NSRunningApplication?
+    @objc func otherAppActivated(_ n: Notification) {
+        guard let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        lastOtherApp = app
+    }
+    func applicationDidResignActive(_ notification: Notification) {
+        // 다른 앱으로 넘어가면 다시 키보드를 안 가져가는 상태로.
+        (window as? MainPanel)?.allowKey = false
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
